@@ -9,7 +9,6 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
     <link
         href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap"
         rel="stylesheet">
@@ -19,7 +18,7 @@
 
 <body>
 
-    <!-- تسجيل الدخول -->
+    <!-- اختيار المعلمة والصف والشعبة -->
     <div id="loginBox" class="login-box">
         <div class="login-icon">👩🏻‍🏫</div>
 
@@ -27,22 +26,22 @@
         <p>مرحبًا بكِ في منصة نجوم صَفّي ⭐</p>
 
         <div class="login-form-group">
-            <label for="teacherSelect">اختاري اسم المعلمة</label>
-            <select id="teacherSelect" required>
+            <label for="teacherSelect">اسم المعلمة</label>
+            <select id="teacherSelect">
                 <option value="">جاري تحميل أسماء المعلمات...</option>
             </select>
         </div>
 
         <div class="login-form-group">
-            <label for="classSelect">اختاري الصف</label>
-            <select id="classSelect" required disabled>
+            <label for="classSelect">الصف</label>
+            <select id="classSelect" disabled>
                 <option value="">اختاري المعلمة أولًا</option>
             </select>
         </div>
 
         <div class="login-form-group">
-            <label for="sectionSelect">اختاري الشعبة</label>
-            <select id="sectionSelect" required disabled>
+            <label for="sectionSelect">الشعبة</label>
+            <select id="sectionSelect" disabled>
                 <option value="">اختاري الصف أولًا</option>
             </select>
         </div>
@@ -55,11 +54,11 @@
             دخول لوحة المعلمة
         </button>
 
-        <p id="loginError" role="alert"></p>
+        <p id="loginError" role="alert" aria-live="polite"></p>
     </div>
 
     <!-- لوحة التحكم -->
-    <main id="dashboard" class="dashboard">
+    <main id="dashboard" class="dashboard" style="display:none;">
 
         <header class="dashboard-header">
             <h1>🌟 لوحة المعلمة</h1>
@@ -77,7 +76,7 @@
                 class="cancel-button"
                 id="logoutButton"
                 onclick="logout()">
-                تسجيل الخروج
+                تغيير المعلمة / تسجيل الخروج
             </button>
         </header>
 
@@ -86,14 +85,14 @@
             <h2>🏫 بيانات الصف والمادة</h2>
 
             <p class="section-description">
-                بيانات الصف والشعبة المختارين لإدارة نقاط الطلاب.
+                بيانات الصف والشعبة المختارين.
             </p>
 
             <div class="form-grid">
                 <input
                     type="text"
                     id="className"
-                    placeholder="الصف أو الشعبة"
+                    placeholder="الصف والشعبة"
                     readonly>
 
                 <input
@@ -101,11 +100,6 @@
                     id="subjectName"
                     placeholder="المادة الدراسية">
             </div>
-
-            <p class="section-description">
-                تُحمّل بيانات الصف والشعبة من إعدادات المعلمة عند ربطها
-                بقاعدة البيانات.
-            </p>
         </section>
 
         <!-- إدارة الطلاب -->
@@ -113,8 +107,7 @@
             <h2>👩🏻‍🎓 إدارة الطلاب</h2>
 
             <p class="section-description">
-                أضيفي الطلاب أو حدّثي بياناتهم ونقاطهم.
-                يجب أن تقتصر إدارة الطلاب على الصفوف المصرح بها للمعلمة.
+                أضيفي الطلاب أو حدّثي بياناتهم.
             </p>
 
             <div class="form-grid">
@@ -131,7 +124,7 @@
                 <input
                     type="number"
                     id="studentPoints"
-                    placeholder="النقاط"
+                    placeholder="النقاط الأولية"
                     min="0">
             </div>
 
@@ -160,24 +153,20 @@
             <div id="studentStatus" role="status"></div>
 
             <h3 class="sub-title">📋 قائمة الطلاب</h3>
-
-            <div id="studentsList">
-                سجّلي الدخول لتحميل الطلاب.
-            </div>
+            <div id="studentsList">اختاري المعلمة والصف والشعبة أولًا.</div>
         </section>
 
-        <!-- ملف الطالب الموحد -->
+        <!-- ملفات الطلاب الموحدة -->
         <section class="panel">
             <h2>👤 ملفات الطلاب الموحدة</h2>
 
             <p class="section-description">
-                يعرض هذا القسم بيانات الطالب المشتركة ونقاطه حسب المادة.
-                يتطلب تفعيله ربطًا آمنًا بقاعدة البيانات باستخدام معرف مدرسي
-                موثوق، وليس الاسم وحده.
+                هذا القسم مخصص لعرض ملفات الطلاب المشتركة عند إعداد
+                نظام الربط الموحد بين المدارس والمواد.
             </p>
 
             <div id="unifiedStudentsList">
-                سيتم عرض ملفات الطلاب الموحدة بعد إعداد الربط بقاعدة البيانات.
+                لم يتم إعداد الربط الموحد بعد.
             </div>
         </section>
 
@@ -232,10 +221,7 @@
             <div id="rewardStatus" role="status"></div>
 
             <h3 class="sub-title">🛍️ المكافآت الحالية</h3>
-
-            <div id="rewardsManagerList">
-                جاري تحميل المكافآت...
-            </div>
+            <div id="rewardsManagerList">اختاري الشعبة لعرض المكافآت.</div>
         </section>
 
         <!-- طلبات المكافآت -->
@@ -244,7 +230,7 @@
                 <div>
                     <h2>🔔 طلبات المكافآت</h2>
                     <p class="section-description">
-                        تابعي طلبات الطلاب وقرري قبولها أو رفضها.
+                        تابعي طلبات الطلاب.
                     </p>
                 </div>
 
@@ -252,7 +238,7 @@
             </div>
 
             <div id="rewardRequestsList">
-                جاري تحميل الطلبات...
+                اختاري الشعبة لعرض الطلبات.
             </div>
         </section>
 
@@ -265,7 +251,6 @@
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
     <!-- إعدادات Firebase الحالية -->
