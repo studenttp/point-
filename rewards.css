@@ -1,0 +1,254 @@
+/* =========================================
+   متجر المكافآت - تصميم أزرق فاتح
+   تعديل الألوان والتنسيق فقط
+   لا يؤثر في Firebase أو قاعدة البيانات
+========================================= */
+/* الخلفية العامة */
+body {
+    background: linear-gradient(180deg, #F7FCFF 0%, #EAF6FF 100%);
+}
+/* الحاوية الرئيسية للمتجر */
+.rewards-shop {
+    background: #DCEEFF;
+    border: 3px solid #64B5F6;
+    border-radius: 24px;
+    box-shadow: 0 8px 20px rgba(33, 150, 243, 0.15);
+    overflow: hidden;
+}
+/* الزينة العلوية */
+.shop-sun {
+    color: #42A5F5;
+}
+/* مظلة المتجر */
+.shop-awning {
+    background: repeating-linear-gradient(
+        90deg,
+        #BBDEFB 0px,
+        #BBDEFB 35px,
+        #64B5F6 35px,
+        #64B5F6 70px
+    );
+    border-bottom: 3px solid #42A5F5;
+}
+/* لافتة المتجر */
+.shop-sign {
+    background: #FFFFFF;
+    border: 3px solid #64B5F6;
+    border-radius: 18px;
+    color: #1976D2;
+    box-shadow: 0 4px 10px rgba(33, 150, 243, 0.15);
+}
+/* جسم المتجر */
+.shop-body {
+    background: #FFFFFF;
+    border: 3px solid #90CAF9;
+    border-radius: 20px;
+}
+/* عنوان المتجر */
+.shop-title {
+    color: #1976D2;
+    text-shadow: 1px 2px 0 #DCEEFF;
+}
+/* صندوق بيانات الطالب */
+.student-box {
+    background: #F2F9FF;
+    border: 2px solid #90CAF9;
+    border-radius: 16px;
+    box-shadow: 0 4px 10px rgba(33, 150, 243, 0.08);
+}
+/* عنوان صندوق الطالب */
+.student-box h2,
+.student-box h3 {
+    color: #1976D2;
+}
+/* حقول الإدخال */
+input,
+select {
+    border: 2px solid #90CAF9;
+    border-radius: 12px;
+    background: #FFFFFF;
+    color: #263238;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+input:focus,
+select:focus {
+    border-color: #2196F3;
+    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.15);
+}
+/* الأزرار */
+button {
+    background: #2196F3;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 12px;
+    transition: background 0.2s, transform 0.2s;
+}
+button:hover {
+    background: #1976D2;
+    transform: translateY(-1px);
+}
+/* الرسائل والتنبيهات */
+.message,
+#message {
+    background: #EAF6FF;
+    border: 2px solid #BBDEFB;
+    border-radius: 12px;
+    color: #1565C0;
+}
+/* عنوان قسم المكافآت */
+.rewards-title {
+    color: #1976D2;
+    text-align: center;
+}
+/* قائمة المكافآت */
+.rewards-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    align-items: stretch;
+}
+/* بطاقة المكافأة */
+.reward-card {
+    background: #F7FCFF;
+    border: 2px solid #90CAF9;
+    border-radius: 18px;
+    box-shadow: 0 5px 12px rgba(33, 150, 243, 0.10);
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.reward-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 9px 18px rgba(33, 150, 243, 0.16);
+}
+/* أيقونة المكافأة */
+.reward-icon {
+    background: #E3F2FD;
+    border-radius: 14px;
+    color: #1976D2;
+}
+/* اسم المكافأة */
+.reward-card h3,
+.reward-name {
+    color: #1565C0;
+}
+/* وصف المكافأة */
+.reward-card p,
+.reward-description {
+    color: #546E7A;
+}
+/* سعر المكافأة بالنقاط */
+.reward-price {
+    color: #1976D2;
+    font-weight: bold;
+}
+/* زر استبدال المكافأة */
+.reward-card button {
+    background: #2196F3;
+    color: #FFFFFF;
+    border-radius: 10px;
+}
+.reward-card button:hover {
+    background: #1565C0;
+}
+/* الزر غير المتاح */
+.reward-card button:disabled,
+button:disabled {
+    background: #CFD8DC;
+    color: #607D8B;
+    cursor: not-allowed;
+    transform: none;
+}
+/* شريط أسفل المتجر */
+.shop-footer {
+    background: linear-gradient(90deg, #90CAF9, #64B5F6);
+    color: #0D47A1;
+    border-top: 2px solid #42A5F5;
+}
+/* =========================================
+   تصميم الرفوف للمكافآت
+========================================= */
+#rewards-list.rewards-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 22px 16px;
+    padding: 22px 16px;
+    align-items: stretch;
+}
+/* كل مكافأة على هيئة بطاقة */
+#rewards-list .reward-card {
+    position: relative;
+    min-width: 0;
+    padding: 16px 12px;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F0F8FF 100%);
+    border: 2px solid #90CAF9;
+    border-radius: 16px;
+    box-shadow: 0 4px 8px rgba(33, 150, 243, 0.10);
+    text-align: center;
+}
+/* خط الرف أسفل كل صف */
+#rewards-list .reward-card::after {
+    content: "";
+    position: absolute;
+    height: 7px;
+    left: -5px;
+    right: -5px;
+    bottom: -13px;
+    background: linear-gradient(180deg, #90CAF9, #42A5F5);
+    border: 1px solid #64B5F6;
+    border-radius: 5px;
+    box-shadow: 0 3px 4px rgba(25, 118, 210, 0.12);
+}
+/* إزالة خط الرف من البطاقات في آخر صف */
+#rewards-list .reward-card:last-child::after {
+    /* يبقى الرف ظاهرًا أسفل البطاقة الأخيرة */
+    display: block;
+}
+/* =========================================
+   الأجهزة اللوحية والجوال
+========================================= */
+@media (max-width: 700px) {
+    .rewards-list,
+    #rewards-list.rewards-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px 12px;
+    }
+    .shop-body {
+        padding: 12px;
+    }
+    .reward-card {
+        padding: 12px 8px;
+    }
+    .shop-sign {
+        font-size: 1.1rem;
+    }
+}
+/* الجوالات الصغيرة */
+@media (max-width: 400px) {
+    .rewards-list,
+    #rewards-list.rewards-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px 10px;
+        padding: 14px 8px;
+    }
+    .reward-card {
+        padding: 10px 6px;
+    }
+    .reward-icon {
+        font-size: 1.8rem;
+    }
+    .reward-card h3,
+    .reward-name {
+        font-size: 0.95rem;
+    }
+    .reward-price {
+        font-size: 0.9rem;
+    }
+}
+/* الشاشات الأضيق: بطاقة واحدة في الصف */
+@media (max-width: 320px) {
+    .rewards-list,
+    #rewards-list.rewards-list {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
