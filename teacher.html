@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -25,20 +26,33 @@
         <h1>لوحة المعلمة</h1>
         <p>مرحبًا بكِ في منصة نجوم صَفّي ⭐</p>
 
-        <input
-            type="email"
-            id="teacherEmail"
-            placeholder="البريد الإلكتروني للمعلمة"
-            autocomplete="username">
+        <div class="login-form-group">
+            <label for="teacherSelect">اختاري اسم المعلمة</label>
+            <select id="teacherSelect" required>
+                <option value="">جاري تحميل أسماء المعلمات...</option>
+            </select>
+        </div>
 
-        <input
-            type="password"
-            id="password"
-            placeholder="كلمة المرور"
-            autocomplete="current-password">
+        <div class="login-form-group">
+            <label for="classSelect">اختاري الصف</label>
+            <select id="classSelect" required disabled>
+                <option value="">اختاري المعلمة أولًا</option>
+            </select>
+        </div>
 
-        <button type="button" class="main-button" onclick="login()">
-            دخول 🔐
+        <div class="login-form-group">
+            <label for="sectionSelect">اختاري الشعبة</label>
+            <select id="sectionSelect" required disabled>
+                <option value="">اختاري الصف أولًا</option>
+            </select>
+        </div>
+
+        <button
+            type="button"
+            class="main-button"
+            id="teacherLoginButton"
+            onclick="loginWithSelection()">
+            دخول لوحة المعلمة
         </button>
 
         <p id="loginError" role="alert"></p>
@@ -54,6 +68,8 @@
             <div class="teacher-info">
                 <p>المعلمة: <strong id="teacherName">المعلمة</strong></p>
                 <p>المدرسة: <strong id="schoolName">المدرسة</strong></p>
+                <p>الصف: <strong id="selectedClass">—</strong></p>
+                <p>الشعبة: <strong id="selectedSection">—</strong></p>
             </div>
 
             <button
@@ -68,15 +84,17 @@
         <!-- بيانات الصف والمادة -->
         <section class="panel">
             <h2>🏫 بيانات الصف والمادة</h2>
+
             <p class="section-description">
-                حددي الصف والمادة لإدارة نقاط طلابك فيها.
+                بيانات الصف والشعبة المختارين لإدارة نقاط الطلاب.
             </p>
 
             <div class="form-grid">
                 <input
                     type="text"
                     id="className"
-                    placeholder="الصف أو الشعبة">
+                    placeholder="الصف أو الشعبة"
+                    readonly>
 
                 <input
                     type="text"
@@ -85,8 +103,8 @@
             </div>
 
             <p class="section-description">
-                يجب ربط هذه الحقول بحساب المعلمة في قاعدة البيانات قبل استخدامها
-                لحفظ النقاط حسب المادة.
+                تُحمّل بيانات الصف والشعبة من إعدادات المعلمة عند ربطها
+                بقاعدة البيانات.
             </p>
         </section>
 
@@ -96,8 +114,7 @@
 
             <p class="section-description">
                 أضيفي الطلاب أو حدّثي بياناتهم ونقاطهم.
-                عند ربط المنصة بقاعدة البيانات الجديدة، ستظهر بيانات الطالب
-                الموحد ونقاطه في المواد المختلفة وفق الصلاحيات.
+                يجب أن تقتصر إدارة الطلاب على الصفوف المصرح بها للمعلمة.
             </p>
 
             <div class="form-grid">
@@ -155,8 +172,8 @@
 
             <p class="section-description">
                 يعرض هذا القسم بيانات الطالب المشتركة ونقاطه حسب المادة.
-                يتطلب تفعيله إنشاء نظام ربط آمن بين تسجيلات الطالب في المواد،
-                باستخدام معرف مدرسي موثوق، وليس الاسم وحده.
+                يتطلب تفعيله ربطًا آمنًا بقاعدة البيانات باستخدام معرف مدرسي
+                موثوق، وليس الاسم وحده.
             </p>
 
             <div id="unifiedStudentsList">
@@ -251,7 +268,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
-    <!-- لا تربطي هذه الصفحة بقاعدة الموقع القديم عند إنشاء المنصة الجديدة -->
+    <!-- إعدادات Firebase الحالية -->
     <script src="firebase.js"></script>
     <script src="teacher.js"></script>
 
