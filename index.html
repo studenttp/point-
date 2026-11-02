@@ -1,0 +1,651 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نجوم صفي</title>
+<meta name="theme-color" content="#EAF6FF">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+Bhaijaan+2:wght@700;800&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<!-- الواجهة الرئيسية -->
+<header class="hero">
+    <div class="hero-overlay"></div>
+
+    <div class="hero-content">
+
+        <h1 class="hero-title">نجوم صفي</h1>
+
+        <div class="hero-characters">
+            <img src="images/girl.png" class="girl" alt="طالبة">
+            <img src="images/boy.png" class="boy" alt="طالب">
+        </div>
+
+        <p>
+            كل إنجاز يبدأ بخطوة...
+            <br>
+            وأنت نجم متألق في صفك ⭐
+        </p>
+
+        <a href="#search" class="start-btn">ابدأ الآن</a>
+
+    </div>
+</header>
+
+<!-- البحث عن الطالب -->
+<section id="search" class="search-box">
+
+    <h2>ابحث عن نجمك 🔎</h2>
+
+    <p>أدخل الرمز الخاص بولي الأمر</p>
+
+    <input
+        type="text"
+        id="studentcode"
+        placeholder="مثال: A102"
+        autocomplete="off"
+    >
+
+    <button onclick="searchStudent()">بحث</button>
+
+    <div id="result"></div>
+
+</section>
+
+<!-- نجم الشهر -->
+<section class="star-month">
+
+    <h2>🏆 نجم الصف لهذا الشهر 🏆</h2>
+
+    <div class="winner">
+
+        <div class="medal">🥇</div>
+
+        <h3 id="starStudent">سيتم تحديده لاحقًا</h3>
+
+        <p>استمر في التألق... فالنجاح يبدأ بالمحاولة.</p>
+
+    </div>
+
+</section>
+
+<!-- متجر المكافآت -->
+<section class="rewards-preview" id="rewards">
+
+    <div class="rewards-preview-icon">🎁</div>
+
+    <h2>متجر المكافآت</h2>
+
+    <p>
+        اجمع نقاطك، فكل نقطة تقرّبك من مكافأتك! ⭐
+    </p>
+
+    <div id="rewards-list" class="rewards-list">
+
+        <div class="rewards-loading">
+            ✨ جارٍ تحميل المكافآت...
+        </div>
+
+    </div>
+
+</section>
+
+<!-- دليل النقاط -->
+<section class="guide">
+
+    <div class="guide-container">
+
+        <div class="cards-side">
+
+            <div class="guide-title">
+                <h2>دليل النقاط</h2>
+            </div>
+
+            <div class="cards">
+
+                <div class="card">
+                    📖
+                    <h3>حل الواجب</h3>
+                    <span>+5</span>
+                </div>
+
+                <div class="card">
+                    🙋🏻🙋🏻‍♀️
+                    <h3>المشاركة</h3>
+                    <span>+3</span>
+                </div>
+
+                <div class="card">
+                    🤝🏻
+                    <h3>التعاون</h3>
+                    <span>+2</span>
+                </div>
+
+                <div class="card">
+                    🌸
+                    <h3>السلوك الجميل</h3>
+                    <span>+2</span>
+                </div>
+
+                <div class="card">
+                    🏅
+                    <h3>إنجاز مميز</h3>
+                    <span>+5</span>
+                </div>
+
+                <div class="card danger">
+                    ❌
+                    <h3>مخالفة القوانين</h3>
+                    <span>-2</span>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+<!-- التذييل -->
+<footer class="footer">
+
+    <p>صُمم بحب ليكون بيئة مشجعة ومحفزة 💙</p>
+
+    <p>أ: مآثر محمد الغنبوصية</p>
+
+</footer>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script src="firebase.js"></script>
+<script src="script.js"></script>
+
+<script>
+
+// =====================================
+// متجر المكافآت
+// =====================================
+
+const rewardsList = document.getElementById("rewards-list");
+
+// =====================================
+// تحميل المكافآت
+// =====================================
+
+function loadRewards() {
+
+    if (!rewardsList) {
+        return;
+    }
+
+    rewardsList.innerHTML = `
+        <div class="rewards-loading">
+            ✨ جارٍ تحميل المكافآت...
+        </div>
+    `;
+
+    db.collection("rewards")
+        .orderBy("createdAt", "desc")
+        .get()
+
+        .then((snapshot) => {
+
+            rewardsList.innerHTML = "";
+
+            if (snapshot.empty) {
+
+                rewardsList.innerHTML = `
+                    <div class="rewards-coming">
+                        <div class="coming-icon">✨</div>
+
+                        <h3>المكافآت قادمة قريبًا!</h3>
+
+                        <p>
+                            استمر في جمع النجوم،
+                            وسيتم الإعلان عن المكافآت قريبًا.
+                        </p>
+                    </div>
+                `;
+
+                return;
+            }
+
+            snapshot.forEach((doc) => {
+
+                const reward = doc.data();
+                const price = Number(reward.price) || 0;
+
+                const hasStudent = !!window.currentStudentId;
+
+                const currentPoints =
+                    Number(window.currentStudentPoints) || 0;
+
+                const canRedeem =
+                    hasStudent && currentPoints >= price;
+
+                let buttonHTML = "";
+
+                if (!hasStudent) {
+
+                    buttonHTML = `
+                        <button class="locked" disabled>
+                            🔐 سجّل دخولك أولًا
+                        </button>
+                    `;
+
+                } else if (!canRedeem) {
+
+                    buttonHTML = `
+                        <button class="locked" disabled>
+                            ⭐ نقاطك غير كافية
+                        </button>
+                    `;
+
+                } else {
+
+                    buttonHTML = `
+                        <button
+                            class="redeem"
+                            onclick="redeemReward('${doc.id}')">
+                            🎁 اختيار المكافأة
+                        </button>
+                    `;
+
+                }
+
+                const card = document.createElement("div");
+                card.className = "reward-card";
+
+                card.innerHTML = `
+                    <div class="reward-icon">
+                        ${escapeHtml(reward.icon || "🎁")}
+                    </div>
+
+                    <h3>
+                        ${escapeHtml(reward.name || "مكافأة")}
+                    </h3>
+
+                    <div class="reward-price">
+                        ⭐ السعر: ${price} نقطة
+                    </div>
+
+                    <p class="reward-description">
+                        ${escapeHtml(reward.description || "")}
+                    </p>
+
+                    ${buttonHTML}
+                `;
+
+                rewardsList.appendChild(card);
+
+            });
+
+        })
+
+        .catch((error) => {
+
+            console.error("خطأ في تحميل المكافآت:", error);
+
+            rewardsList.innerHTML = `
+                <div class="rewards-coming">
+                    <div class="coming-icon">⚠️</div>
+
+                    <h3>تعذر تحميل المكافآت</h3>
+
+                    <p>يرجى المحاولة مرة أخرى.</p>
+                </div>
+            `;
+
+        });
+
+}
+
+// =====================================
+// اختيار المكافأة
+// =====================================
+
+async function redeemReward(rewardId) {
+
+    if (!window.currentStudentId) {
+
+        alert("🔐 سجّل دخولك أولًا.");
+        return;
+
+    }
+
+    try {
+
+        // الحصول على المكافأة
+        const rewardSnapshot = await db
+            .collection("rewards")
+            .doc(rewardId)
+            .get();
+
+        if (!rewardSnapshot.exists) {
+
+            alert("❌ المكافأة غير موجودة.");
+            return;
+
+        }
+
+        const reward = rewardSnapshot.data();
+        const price = Number(reward.price) || 0;
+
+        // قراءة أحدث بيانات الطالب
+        const studentRef = db
+            .collection("students")
+            .doc(window.currentStudentId);
+
+        const studentSnapshot = await studentRef.get();
+
+        if (!studentSnapshot.exists) {
+
+            alert("❌ لم يتم العثور على بيانات الطالب.");
+            return;
+
+        }
+
+        const student = studentSnapshot.data();
+        const currentPoints = Number(student.points) || 0;
+
+        window.currentStudentPoints = currentPoints;
+
+        // التأكد من كفاية النقاط
+        if (currentPoints < price) {
+
+            alert("⭐ نقاطك غير كافية لهذه المكافأة.");
+            loadRewards();
+            return;
+
+        }
+
+        // نافذة التأكيد
+        const confirmed = await showRewardConfirmation(
+            reward.name,
+            price,
+            currentPoints
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        // خصم النقاط وتسجيل العملية
+        await db.runTransaction(async (transaction) => {
+
+            const latestStudent = await transaction.get(studentRef);
+
+            if (!latestStudent.exists) {
+                throw new Error("بيانات الطالب غير موجودة.");
+            }
+
+            const latestData = latestStudent.data();
+            const latestPoints = Number(latestData.points) || 0;
+
+            if (latestPoints < price) {
+                throw new Error("لم تعد النقاط كافية لإتمام العملية.");
+            }
+
+            const newPoints = latestPoints - price;
+
+            transaction.update(studentRef, {
+                points: newPoints
+            });
+
+            const requestRef = db
+                .collection("rewardRequests")
+                .doc();
+
+            transaction.set(requestRef, {
+
+                studentId: window.currentStudentId,
+                studentCode: window.currentStudentCode,
+                studentName: window.currentStudentName,
+
+                rewardId: rewardId,
+                rewardName: reward.name,
+
+                price: price,
+                status: "completed",
+
+                pointsBefore: latestPoints,
+                pointsAfter: newPoints,
+
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+
+            });
+
+            window.currentStudentPoints = newPoints;
+
+        });
+
+        // تحديث بيانات الطالب في الصفحة
+        const result = document.getElementById("result");
+
+        if (result) {
+
+            result.innerHTML = `
+                <div class="student-card">
+
+                    <h2>
+                        🌟 ${escapeHtml(window.currentStudentName)}
+                    </h2>
+
+                    <div class="points">
+                        🏆 مجموع النقاط
+
+                        <h1>${window.currentStudentPoints}</h1>
+                    </div>
+
+                    <p>
+                        تم تحديث رصيدك بعد استبدال المكافأة 🎁
+                    </p>
+
+                </div>
+            `;
+
+        }
+
+        // إعادة تحميل المكافآت
+        loadRewards();
+
+        // رسالة النجاح
+        alert(
+            "🎉 تمت عملية الاستبدال بنجاح!\n\n" +
+            "🎁 المكافأة: " + reward.name +
+            "\n⭐ تم خصم: " + price + " نقطة" +
+            "\n⭐ رصيدك الآن: " +
+            window.currentStudentPoints + " نقطة"
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        alert(
+            "❌ حدث خطأ أثناء استبدال المكافأة:\n" +
+            error.message
+        );
+
+    }
+
+}
+
+// =====================================
+// نافذة تأكيد الاستبدال
+// =====================================
+
+function showRewardConfirmation(
+    rewardName,
+    price,
+    currentPoints
+) {
+
+    return new Promise((resolve) => {
+
+        const oldModal = document.getElementById("rewardConfirmModal");
+
+        if (oldModal) {
+            oldModal.remove();
+        }
+
+        const newPoints = currentPoints - price;
+        const modal = document.createElement("div");
+
+        modal.id = "rewardConfirmModal";
+
+        modal.innerHTML = `
+            <div
+                style="
+                    position:fixed;
+                    inset:0;
+                    background:rgba(25,118,210,.35);
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    z-index:99999;
+                    padding:20px;
+                "
+            >
+
+                <div
+                    style="
+                        width:100%;
+                        max-width:420px;
+                        background:#F7FCFF;
+                        border:2px solid #90CAF9;
+                        border-radius:25px;
+                        padding:28px 22px;
+                        text-align:center;
+                        box-shadow:0 15px 40px rgba(25,118,210,.2);
+                        font-family:Cairo,sans-serif;
+                    "
+                >
+
+                    <div style="font-size:55px;margin-bottom:8px;">
+                        🎁
+                    </div>
+
+                    <h2 style="margin:5px 0 15px;color:#1976D2;">
+                        ${escapeHtml(rewardName)}
+                    </h2>
+
+                    <p style="font-size:17px;color:#526779;line-height:1.9;">
+                        سيتم خصم
+                        <strong style="color:#1976D2;">
+                            ${price} نقطة
+                        </strong>
+                        من رصيدك.
+                    </p>
+
+                    <p style="font-size:15px;color:#526779;">
+                        سيصبح رصيدك بعد الاستبدال:
+                        <strong style="color:#1976D2;">
+                            ${newPoints} نقطة
+                        </strong>
+                    </p>
+
+                    <p style="font-weight:700;color:#334E68;margin-top:20px;">
+                        هل تريد تأكيد اختيارك؟
+                    </p>
+
+                    <div style="display:flex;gap:10px;margin-top:20px;">
+
+                        <button
+                            id="confirmRewardButton"
+                            style="
+                                flex:1;
+                                background:#1976D2;
+                                color:white;
+                                border:none;
+                                border-radius:15px;
+                                padding:12px;
+                                font-family:Cairo,sans-serif;
+                                font-weight:700;
+                                font-size:15px;
+                                cursor:pointer;
+                            "
+                        >
+                            ✅ تأكيد
+                        </button>
+
+                        <button
+                            id="cancelRewardButton"
+                            style="
+                                flex:1;
+                                background:#DCEEFF;
+                                color:#195A91;
+                                border:none;
+                                border-radius:15px;
+                                padding:12px;
+                                font-family:Cairo,sans-serif;
+                                font-weight:700;
+                                font-size:15px;
+                                cursor:pointer;
+                            "
+                        >
+                            ↩️ تراجع
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        document.getElementById("confirmRewardButton").onclick = () => {
+            modal.remove();
+            resolve(true);
+        };
+
+        document.getElementById("cancelRewardButton").onclick = () => {
+            modal.remove();
+            resolve(false);
+        };
+
+    });
+
+}
+
+// =====================================
+// حماية النصوص
+// =====================================
+
+function escapeHtml(text) {
+
+    return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+}
+
+// =====================================
+// تشغيل المتجر
+// =====================================
+
+loadRewards();
+
+</script>
+
+</body>
+</html>
