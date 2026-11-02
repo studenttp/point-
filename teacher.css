@@ -1,346 +1,891 @@
-* {
-    box-sizing: border-box;
-    font-family: 'Cairo', sans-serif;
+
+/* =============================================
+   نجوم صَفّي - لوحة المعلمة
+   اختيار المعلمة والصف والشعبة
+   لا يستخدم تسجيل الدخول أو Cloud Functions
+   ============================================= */
+
+const db = firebase.firestore();
+
+let currentTeacher = null;
+let currentTeacherData = null;
+
+let currentSelection = {
+    className: "",
+    section: ""
+};
+
+let editingStudentId = null;
+let editingRewardId = null;
+
+let studentsUnsubscribe = null;
+let rewardsUnsubscribe = null;
+let requestsUnsubscribe = null;
+
+// =============================================
+// أدوات مساعدة
+// =============================================
+
+function getElement(id) {
+    return document.getElementById(id);
 }
 
-body {
-    margin: 0;
-    background: #f0f7ff;
-    color: #334155;
-    direction: rtl;
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
-button {
-    font-family: 'Cairo', sans-serif;
-    border: 0;
-    cursor: pointer;
+function showStatus(id, message, success = false) {
+    const element = getElement(id);
+    if (!element) return;
+
+    element.textContent = message;
+    element.style.color = success ? "#21845b" : "#d97706";
 }
 
-/* =========================
-   تسجيل الدخول
-========================= */
-.login-box {
-    width: 90%;
-    max-width: 450px;
-    margin: 80px auto;
-    background: #ffffff;
-    padding: 40px 25px;
-    border-radius: 35px;
-    text-align: center;
-    box-shadow: 0 10px 30px rgba(40, 100, 160, 0.10);
+function showLoginError(message) {
+    const element = getElement("loginError");
+    if (element) element.textContent = message;
 }
 
-.login-icon {
-    font-size: 65px;
+function showFirebaseError(error) {
+    console.error("Firebase error:", error);
+
+    const messages = {
+        "permission-denied":
+            "تعذر الوصول إلى البيانات. تحققي من صلاحيات Firestore.",
+        "unavailable":
+            "تعذر الاتصال بالخدمة. حاولي لاحقًا.",
+        "failed-precondition":
+            "قاعدة البيانات تحتاج إلى مراجعة إعداداتها.",
+        "not-found":
+            "البيانات المطلوبة غير موجودة."
+    };
+
+    alert(
+        messages[error?.code] ||
+        error?.message ||
+        "حدث خطأ. تحققي من الاتصال وإعدادات Firebase."
+    );
 }
 
-.login-box h1 {
-    color: #1976d2;
-    margin: 10px 0 0;
+function serverTimestamp() {
+    return firebase.firestore.FieldValue.serverTimestamp();
 }
 
-.login-box p {
-    color: #64748b;
+// =============================================
+// الصفوف والشعب
+// =============================================
+
+const availableClasses = [
+    "الصف الأول",
+    "الصف الثاني",
+    "الصف الثالث",
+    "الصف الرابع",
+    "الصف الخامس",
+    "الصف السادس",
+    "الصف السابع",
+    "الصف الثامن",
+    "الصف التاسع",
+    "الصف العاشر"
+];
+
+const availableSections = ["أ", "ب", "ج", "د", "هـ"];
+
+function fillSelect(select, placeholder, values) {
+    if (!select) return;
+
+    select.innerHTML = "";
+
+    const firstOption = document.createElement("option");
+    firstOption.value = "";
+    firstOption.textContent = placeholder;
+    select.appendChild(firstOption);
+
+    values.forEach(item => {
+        const option = document.createElement("option");
+        option.value = item;
+        option.textContent = item;
+        select.appendChild(option);
+    });
 }
 
-.login-box input {
-    width: 100%;
-    padding: 15px;
-    border: 2px solid #dbeafe;
-    border-radius: 18px;
-    font-size: 16px;
-    text-align: center;
-    margin: 15px 0;
+function prepareClassOptions() {
+    fillSelect(
+        getElement("classSelect"),
+        "اختاري الصف",
+        availableClasses
+    );
+
+    fillSelect(
+        getElement("sectionSelect"),
+        "اختاري الصف أولًا",
+        []
+    );
+
+    getElement("classSelect").disabled = !currentTeacher;
+    getElement("sectionSelect").disabled = true;
 }
 
-.login-box button {
-    width: 100%;
-    padding: 15px;
-    border-radius: 18px;
-    background: #1976d2;
-    color: white;
-    font-size: 17px;
-    transition: background 0.2s ease;
-}
+// =============================================
+// تحميل أسماء المعلمات من Firestore
+// =============================================
 
-.login-box button:hover {
-    background: #1565c0;
-}
+async function loadTeacherOptions() {
+    const select = getElement("teacherSelect");
 
-#loginError {
-    color: #e53935;
-}
+    if (!select) return;
 
-/* =========================
-   لوحة التحكم
-========================= */
-.dashboard {
-    display: none;
-    width: 94%;
-    max-width: 1100px;
-    margin: 30px auto 60px;
-}
+    select.disabled = true;
+    select.innerHTML = "<option value=''>جاري تحميل المعلمات...</option>";
 
-.dashboard-header {
-    background: #ffffff;
-    padding: 25px;
-    border-radius: 30px;
-    box-shadow: 0 8px 25px rgba(40, 100, 160, 0.08);
-    margin-bottom: 25px;
-    border-top: 5px solid #64b5f6;
-}
+    try {
+        const snapshot = await db.collection("teachers").get();
 
-.dashboard-header h1 {
-    margin: 0;
-    color: #1976d2;
-}
+        const teachers = [];
 
-/* =========================
-   الأقسام
-========================= */
-.panel {
-    background: #ffffff;
-    padding: 25px;
-    border-radius: 30px;
-    margin-bottom: 25px;
-    box-shadow: 0 8px 25px rgba(40, 100, 160, 0.08);
-    border: 1px solid #e3efff;
-}
+        snapshot.forEach(doc => {
+            const data = doc.data();
 
-.panel h2 {
-    color: #1976d2;
-    margin-top: 0;
-}
+            // استبعاد الحسابات المعطلة
+            if (data.active === false) return;
 
-.section-description {
-    color: #64748b;
-}
+            // لا نعرض السجلات التي لا تحتوي على اسم
+            if (!data.name || !String(data.name).trim()) return;
 
-.form-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin: 20px 0;
-}
+            teachers.push({
+                id: doc.id,
+                name: String(data.name).trim(),
+                schoolName: data.schoolName || ""
+            });
+        });
 
-input,
-textarea {
-    width: 100%;
-    padding: 14px;
-    border: 2px solid #dbeafe;
-    border-radius: 16px;
-    font-size: 16px;
-    outline: none;
-    background: #ffffff;
-    color: #334155;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
+        teachers.sort((a, b) =>
+            a.name.localeCompare(b.name, "ar")
+        );
 
-textarea {
-    min-height: 100px;
-    resize: vertical;
-    margin-bottom: 12px;
-}
+        select.innerHTML = "";
 
-input:focus,
-textarea:focus {
-    border-color: #64b5f6;
-    box-shadow: 0 0 0 3px rgba(100, 181, 246, 0.15);
-}
+        const firstOption = document.createElement("option");
+        firstOption.value = "";
+        firstOption.textContent = teachers.length
+            ? "اختاري اسم المعلمة"
+            : "لا توجد أسماء معلمات مضافة";
+        select.appendChild(firstOption);
 
-/* =========================
-   الأزرار
-========================= */
-.main-button {
-    background: #1976d2;
-    color: white;
-    padding: 14px 25px;
-    border-radius: 18px;
-    font-size: 16px;
-    margin: 5px;
-    transition: background 0.2s ease, transform 0.2s ease;
-}
+        teachers.forEach(teacher => {
+            const option = document.createElement("option");
+            option.value = teacher.id;
+            option.textContent = teacher.schoolName
+                ? `${teacher.name} — ${teacher.schoolName}`
+                : teacher.name;
 
-.main-button:hover {
-    background: #1565c0;
-    transform: translateY(-1px);
-}
+            select.appendChild(option);
+        });
 
-.cancel-button {
-    background: #78909c;
-    color: white;
-    padding: 14px 25px;
-    border-radius: 18px;
-    font-size: 16px;
-    margin: 5px;
-}
+        select.disabled = teachers.length === 0;
 
-.cancel-button:hover {
-    background: #607d8b;
-}
+        if (teachers.length === 0) {
+            showLoginError(
+                "لم تُضف أسماء المعلمات بعد. أضيفي سجلًا في مجموعة teachers."
+            );
+        } else {
+            showLoginError("");
+        }
 
-/* =========================
-   القوائم
-========================= */
-.sub-title {
-    margin-top: 30px;
-    color: #475569;
-}
+    } catch (error) {
+        console.error("Loading teachers failed:", error);
 
-.student-card,
-.reward-manager-card,
-.request-card {
-    background: #f5faff;
-    border: 2px solid #dbeafe;
-    border-radius: 22px;
-    padding: 18px;
-    margin: 12px 0;
-}
+        select.innerHTML =
+            "<option value=''>تعذر تحميل أسماء المعلمات</option>";
 
-.student-card h3,
-.reward-manager-card h3 {
-    color: #1976d2;
-    margin-top: 0;
-}
-
-.card-actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-top: 12px;
-}
-
-.edit-button {
-    background: #2196f3;
-    color: white;
-    padding: 10px 18px;
-    border-radius: 14px;
-}
-
-.edit-button:hover {
-    background: #1976d2;
-}
-
-.delete-button {
-    background: #e53935;
-    color: white;
-    padding: 10px 18px;
-    border-radius: 14px;
-}
-
-.delete-button:hover {
-    background: #c62828;
-}
-
-/* =========================
-   الطلبات
-========================= */
-.requests-title {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
-}
-
-.pending-count {
-    min-width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: #1976d2;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    font-weight: bold;
-}
-
-.request-card {
-    border-right: 6px solid #64b5f6;
-}
-
-.request-card h3 {
-    color: #1976d2;
-}
-
-.request-info {
-    line-height: 1.9;
-}
-
-.approve-button {
-    background: #2e9d70;
-    color: white;
-    padding: 11px 20px;
-    border-radius: 14px;
-}
-
-.approve-button:hover {
-    background: #21845b;
-}
-
-.reject-button {
-    background: #e53935;
-    color: white;
-    padding: 11px 20px;
-    border-radius: 14px;
-}
-
-.reject-button:hover {
-    background: #c62828;
-}
-
-.status-approved {
-    color: #21845b;
-    font-weight: bold;
-}
-
-.status-rejected {
-    color: #e53935;
-    font-weight: bold;
-}
-
-/* =========================
-   الرسائل
-========================= */
-#studentStatus,
-#rewardStatus {
-    margin: 15px 0;
-    font-weight: bold;
-}
-
-/* =========================
-   الجوال
-========================= */
-@media (max-width: 700px) {
-    .dashboard {
-        width: 94%;
-        margin-top: 15px;
-    }
-
-    .form-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .panel {
-        padding: 18px;
-        border-radius: 25px;
-    }
-
-    .requests-title {
-        align-items: flex-start;
-    }
-
-    .card-actions {
-        flex-direction: column;
-    }
-
-    .card-actions button {
-        width: 100%;
-    }
-
-    .main-button,
-    .cancel-button {
-        width: 100%;
-        margin: 5px 0;
+        showLoginError(
+            "تعذر تحميل أسماء المعلمات. تحققي من إعدادات Firestore وصلاحياته."
+        );
     }
 }
+
+// =============================================
+// اختيار المعلمة والصف والشعبة
+// =============================================
+
+getElement("teacherSelect")?.addEventListener("change", () => {
+    const teacherId = getElement("teacherSelect").value;
+
+    // لا نسمح بتغيير الاختيار أثناء بقاء لوحة سابقة مفتوحة
+    clearCurrentSession();
+
+    const classSelect = getElement("classSelect");
+    const sectionSelect = getElement("sectionSelect");
+
+    fillSelect(
+        classSelect,
+        teacherId ? "اختاري الصف" : "اختاري المعلمة أولًا",
+        teacherId ? availableClasses : []
+    );
+
+    fillSelect(
+        sectionSelect,
+        "اختاري الصف أولًا",
+        []
+    );
+
+    classSelect.disabled = !teacherId;
+    sectionSelect.disabled = true;
+
+    showLoginError("");
+});
+
+getElement("classSelect")?.addEventListener("change", () => {
+    const className = getElement("classSelect").value;
+
+    fillSelect(
+        getElement("sectionSelect"),
+        className ? "اختاري الشعبة" : "اختاري الصف أولًا",
+        className ? availableSections : []
+    );
+
+    getElement("sectionSelect").disabled = !className;
+    showLoginError("");
+});
+
+// =============================================
+// الدخول إلى لوحة المعلمة
+// =============================================
+
+async function loginWithSelection() {
+    const button = getElement("teacherLoginButton");
+
+    try {
+        showLoginError("");
+
+        const teacherId = getElement("teacherSelect")?.value;
+        const className = getElement("classSelect")?.value;
+        const section = getElement("sectionSelect")?.value;
+
+        if (!teacherId || !className || !section) {
+            throw new Error(
+                "اختاري اسم المعلمة والصف والشعبة أولًا."
+            );
+        }
+
+        if (button) button.disabled = true;
+
+        const teacherDoc = await db
+            .collection("teachers")
+            .doc(teacherId)
+            .get();
+
+        if (!teacherDoc.exists) {
+            throw new Error("لم يتم العثور على سجل المعلمة.");
+        }
+
+        const teacherData = teacherDoc.data();
+
+        if (teacherData.active === false) {
+            throw new Error("هذا السجل غير مفعّل.");
+        }
+
+        if (!teacherData.name || !teacherData.schoolId) {
+            throw new Error(
+                "سجل المعلمة يحتاج إلى الاسم وschoolId قبل المتابعة."
+            );
+        }
+
+        currentTeacher = {
+            uid: teacherDoc.id
+        };
+
+        currentTeacherData = teacherData;
+
+        currentSelection = {
+            className,
+            section
+        };
+
+        showDashboard();
+        loadTeacherInfo();
+
+        loadStudents();
+        loadRewardsManager();
+        loadRewardRequests();
+
+    } catch (error) {
+        console.error("Selection error:", error);
+
+        showLoginError(
+            error?.message || "تعذر فتح لوحة المعلمة."
+        );
+    } finally {
+        if (button) button.disabled = false;
+    }
+}
+
+// =============================================
+// تسجيل الخروج / تغيير الاختيارات
+// =============================================
+
+function clearCurrentSession() {
+    stopListeners();
+
+    currentTeacher = null;
+    currentTeacherData = null;
+
+    currentSelection = {
+        className: "",
+        section: ""
+    };
+
+    editingStudentId = null;
+    editingRewardId = null;
+}
+
+function logout() {
+    clearCurrentSession();
+
+    showLogin();
+    showLoginError("");
+
+    if (getElement("studentsList")) {
+        getElement("studentsList").textContent =
+            "اختاري المعلمة والصف والشعبة أولًا.";
+    }
+
+    if (getElement("rewardsManagerList")) {
+        getElement("rewardsManagerList").textContent =
+            "اختاري الشعبة لعرض المكافآت.";
+    }
+
+    if (getElement("rewardRequestsList")) {
+        getElement("rewardRequestsList").textContent =
+            "اختاري الشعبة لعرض الطلبات.";
+    }
+
+    if (getElement("pendingCount")) {
+        getElement("pendingCount").textContent = "0";
+    }
+
+    cancelStudentEdit();
+    cancelRewardEdit();
+}
+
+// =============================================
+// إظهار الواجهات
+// =============================================
+
+function showLogin() {
+    if (getElement("loginBox")) {
+        getElement("loginBox").style.display = "block";
+    }
+
+    if (getElement("dashboard")) {
+        getElement("dashboard").style.display = "none";
+    }
+}
+
+function showDashboard() {
+    if (getElement("loginBox")) {
+        getElement("loginBox").style.display = "none";
+    }
+
+    if (getElement("dashboard")) {
+        getElement("dashboard").style.display = "block";
+    }
+}
+
+function loadTeacherInfo() {
+    if (!currentTeacherData || !currentTeacher) return;
+
+    getElement("teacherName").textContent =
+        currentTeacherData.name || "المعلمة";
+
+    getElement("schoolName").textContent =
+        currentTeacherData.schoolName || "المدرسة";
+
+    getElement("className").value =
+        `${currentSelection.className} — الشعبة ${currentSelection.section}`;
+
+    getElement("selectedClass").textContent =
+        currentSelection.className;
+
+    getElement("selectedSection").textContent =
+        currentSelection.section;
+
+    getElement("subjectName").value =
+        currentTeacherData.subjectName || "";
+}
+
+// =============================================
+// نطاق بيانات المعلمة
+// =============================================
+
+function teacherCollection(name) {
+    if (!currentTeacher) {
+        throw new Error("اختاري المعلمة أولًا.");
+    }
+
+    return db
+        .collection("teachers")
+        .doc(currentTeacher.uid)
+        .collection(name);
+}
+
+// =============================================
+// إيقاف مستمعات Firestore
+// =============================================
+
+function stopListeners() {
+    [
+        studentsUnsubscribe,
+        rewardsUnsubscribe,
+        requestsUnsubscribe
+    ].forEach(unsubscribe => {
+        if (typeof unsubscribe === "function") {
+            unsubscribe();
+        }
+    });
+
+    studentsUnsubscribe = null;
+    rewardsUnsubscribe = null;
+    requestsUnsubscribe = null;
+}
+
+// =============================================
+// إدارة الطلاب
+// =============================================
+
+async function addStudent() {
+    if (!currentTeacher || !currentTeacherData) return;
+
+    const name = getElement("studentName")?.value.trim();
+    const code = getElement("studentCode")?.value.trim();
+    const points = Number(getElement("studentPoints")?.value || 0);
+    const message = getElement("studentMessage")?.value.trim();
+
+    if (!name || !code) {
+        showStatus("studentStatus", "أدخلي اسم الطالب ورمزه.");
+        return;
+    }
+
+    if (!Number.isFinite(points) || points < 0) {
+        showStatus("studentStatus", "أدخلي عدد نقاط صحيحًا.");
+        return;
+    }
+
+    const schoolId = currentTeacherData.schoolId;
+
+    if (!schoolId) {
+        showStatus("studentStatus", "لم تُربط المعلمة بمدرسة.");
+        return;
+    }
+
+    try {
+        const studentData = {
+            name,
+            code,
+            message: message || "بداية مشرقة ⭐",
+            schoolId,
+            teacherId: currentTeacher.uid,
+            className: currentSelection.className,
+            section: currentSelection.section,
+            subjectName: getElement("subjectName")?.value.trim()
+                || currentTeacherData.subjectName
+                || "",
+            updatedAt: serverTimestamp()
+        };
+
+        if (editingStudentId) {
+            await teacherCollection("students")
+                .doc(editingStudentId)
+                .update(studentData);
+
+            showStatus("studentStatus", "تم تعديل بيانات الطالب.", true);
+        } else {
+            await teacherCollection("students").add({
+                ...studentData,
+                initialPoints: points,
+                createdAt: serverTimestamp()
+            });
+
+            showStatus("studentStatus", "تمت إضافة الطالب.", true);
+        }
+
+        cancelStudentEdit();
+
+    } catch (error) {
+        showFirebaseError(error);
+    }
+}
+
+function loadStudents() {
+    if (!currentTeacher) return;
+
+    const list = getElement("studentsList");
+    if (!list) return;
+
+    list.textContent = "جاري تحميل الطلاب...";
+
+    if (studentsUnsubscribe) studentsUnsubscribe();
+
+    studentsUnsubscribe = teacherCollection("students")
+        .where("className", "==", currentSelection.className)
+        .where("section", "==", currentSelection.section)
+        .orderBy("name")
+        .onSnapshot(snapshot => {
+            if (snapshot.empty) {
+                list.textContent = "لا يوجد طلاب في هذه الشعبة حاليًا.";
+                return;
+            }
+
+            let html = "";
+
+            snapshot.forEach(doc => {
+                const student = doc.data();
+                const id = encodeURIComponent(doc.id);
+
+                html += `
+                    <div class="student-card">
+                        <h3>🌟 ${escapeHtml(student.name)}</h3>
+                        <p>🔑 الرمز: ${escapeHtml(student.code)}</p>
+                        <p>📚 المادة: ${escapeHtml(student.subjectName || "غير محددة")}</p>
+                        <p>🏫 الصف: ${escapeHtml(student.className || "")}</p>
+                        <p>الشعبة: ${escapeHtml(student.section || "")}</p>
+                        <p>💬 ${escapeHtml(student.message || "")}</p>
+                        <div class="card-actions">
+                            <button class="edit-button"
+                                onclick="editStudent(decodeURIComponent('${id}'))">
+                                ✏️ تعديل
+                            </button>
+                            <button class="delete-button"
+                                onclick="deleteStudent(decodeURIComponent('${id}'))">
+                                🗑 حذف
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            list.innerHTML = html;
+        }, showFirebaseError);
+}
+
+async function editStudent(id) {
+    try {
+        const doc = await teacherCollection("students").doc(id).get();
+
+        if (!doc.exists) {
+            alert("الطالب غير موجود.");
+            return;
+        }
+
+        const student = doc.data();
+
+        if (student.className !== currentSelection.className ||
+            student.section !== currentSelection.section) {
+            throw new Error("لا يمكن تعديل طالب من شعبة أخرى.");
+        }
+
+        getElement("studentName").value = student.name || "";
+        getElement("studentCode").value = student.code || "";
+        getElement("studentPoints").value = student.initialPoints ?? "";
+        getElement("studentMessage").value = student.message || "";
+
+        editingStudentId = id;
+        getElement("studentSaveButton").textContent = "💾 حفظ التعديلات";
+        getElement("cancelStudentButton").style.display = "inline-block";
+
+        getElement("studentName").scrollIntoView({
+            behavior: "smooth",
+            block: "center"
+        });
+
+    } catch (error) {
+        showFirebaseError(error);
+    }
+}
+
+async function deleteStudent(id) {
+    if (!confirm("هل تريدين حذف هذا الطالب من قائمة المعلمة؟")) return;
+
+    try {
+        const ref = teacherCollection("students").doc(id);
+        const doc = await ref.get();
+
+        if (!doc.exists) return;
+
+        const student = doc.data();
+
+        if (student.className !== currentSelection.className ||
+            student.section !== currentSelection.section) {
+            throw new Error("لا يمكن حذف طالب من شعبة أخرى.");
+        }
+
+        await ref.delete();
+
+        showStatus("studentStatus", "تم حذف الطالب.", true);
+
+    } catch (error) {
+        showFirebaseError(error);
+    }
+}
+
+function cancelStudentEdit() {
+    editingStudentId = null;
+
+    if (getElement("studentName")) getElement("studentName").value = "";
+    if (getElement("studentCode")) getElement("studentCode").value = "";
+    if (getElement("studentPoints")) getElement("studentPoints").value = "";
+    if (getElement("studentMessage")) getElement("studentMessage").value = "";
+
+    if (getElement("studentSaveButton")) {
+        getElement("studentSaveButton").textContent = "➕ إضافة الطالب";
+    }
+
+    if (getElement("cancelStudentButton")) {
+        getElement("cancelStudentButton").style.display = "none";
+    }
+}
+
+// =============================================
+// إدارة المكافآت
+// =============================================
+
+async function saveReward() {
+    if (!currentTeacher) return;
+
+    const name = getElement("rewardName")?.value.trim();
+    const price = Number(getElement("rewardPrice")?.value);
+    const icon = getElement("rewardIcon")?.value.trim();
+    const description = getElement("rewardDescription")?.value.trim();
+
+    if (!name) {
+        showStatus("rewardStatus", "أدخلي اسم المكافأة.");
+        return;
+    }
+
+    if (!Number.isFinite(price) || price <= 0) {
+        showStatus("rewardStatus", "أدخلي عدد نقاط صحيحًا.");
+        return;
+    }
+
+    try {
+        const rewardData = {
+            name,
+            price,
+            icon: icon || "🎁",
+            description: description || "",
+            schoolId: currentTeacherData.schoolId,
+            teacherId: currentTeacher.uid,
+            className: currentSelection.className,
+            section: currentSelection.section,
+            updatedAt: serverTimestamp()
+        };
+
+        const wasEditing = Boolean(editingRewardId);
+
+        if (wasEditing) {
+            await teacherCollection("rewards")
+                .doc(editingRewardId)
+                .update(rewardData);
+        } else {
+            await teacherCollection("rewards").add({
+                ...rewardData,
+                createdAt: serverTimestamp()
+            });
+        }
+
+        showStatus(
+            "rewardStatus",
+            wasEditing ? "تم تعديل المكافأة." : "تمت إضافة المكافأة.",
+            true
+        );
+
+        cancelRewardEdit();
+
+    } catch (error) {
+        showFirebaseError(error);
+    }
+}
+
+function loadRewardsManager() {
+    if (!currentTeacher) return;
+
+    const list = getElement("rewardsManagerList");
+    if (!list) return;
+
+    list.textContent = "جاري تحميل المكافآت...";
+
+    if (rewardsUnsubscribe) rewardsUnsubscribe();
+
+    rewardsUnsubscribe = teacherCollection("rewards")
+        .where("className", "==", currentSelection.className)
+        .where("section", "==", currentSelection.section)
+        .orderBy("name")
+        .onSnapshot(snapshot => {
+            if (snapshot.empty) {
+                list.textContent = "لا توجد مكافآت لهذه الشعبة حاليًا 🎁";
+                return;
+            }
+
+            let html = "";
+
+            snapshot.forEach(doc => {
+                const reward = doc.data();
+                const id = encodeURIComponent(doc.id);
+
+                html += `
+                    <div class="reward-manager-card">
+                        <h3>${escapeHtml(reward.icon || "🎁")}
+                            ${escapeHtml(reward.name)}</h3>
+                        <p>⭐ السعر: ${Number(reward.price) || 0} نقطة</p>
+                        <p>${escapeHtml(reward.description || "")}</p>
+                        <div class="card-actions">
+                            <button class="edit-button"
+                                onclick="editReward(decodeURIComponent('${id}'))">
+                                ✏️ تعديل
+                            </button>
+                            <button class="delete-button"
+                                onclick="deleteReward(decodeURIComponent('${id}'))">
+                                🗑 حذف
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            list.innerHTML = html;
+        }, showFirebaseError);
+}
+
+async function editReward(id) {
+    try {
+        const doc = await teacherCollection("rewards").doc(id).get();
+
+        if (!doc.exists) return;
+
+        const reward = doc.data();
+
+        if (reward.className !== currentSelection.className ||
+            reward.section !== currentSelection.section) {
+            throw new Error("لا يمكن تعديل مكافأة من شعبة أخرى.");
+        }
+
+        getElement("rewardName").value = reward.name || "";
+        getElement("rewardPrice").value = reward.price || "";
+        getElement("rewardIcon").value = reward.icon || "";
+        getElement("rewardDescription").value = reward.description || "";
+
+        editingRewardId = id;
+
+        getElement("rewardSaveButton").textContent = "💾 حفظ التعديلات";
+        getElement("cancelRewardButton").style.display = "inline-block";
+
+    } catch (error) {
+        showFirebaseError(error);
+    }
+}
+
+async function deleteReward(id) {
+    if (!confirm("هل أنتِ متأكدة من حذف المكافأة؟")) return;
+
+    try {
+        const ref = teacherCollection("rewards").doc(id);
+        const doc = await ref.get();
+
+        if (!doc.exists) return;
+
+        const reward = doc.data();
+
+        if (reward.className !== currentSelection.className ||
+            reward.section !== currentSelection.section) {
+            throw new Error("لا يمكن حذف مكافأة من شعبة أخرى.");
+        }
+
+        await ref.delete();
+
+    } catch (error) {
+        showFirebaseError(error);
+    }
+}
+
+function cancelRewardEdit() {
+    editingRewardId = null;
+
+    if (getElement("rewardName")) getElement("rewardName").value = "";
+    if (getElement("rewardPrice")) getElement("rewardPrice").value = "";
+    if (getElement("rewardIcon")) getElement("rewardIcon").value = "";
+    if (getElement("rewardDescription")) {
+        getElement("rewardDescription").value = "";
+    }
+
+    if (getElement("rewardSaveButton")) {
+        getElement("rewardSaveButton").textContent = "➕ إضافة المكافأة";
+    }
+
+    if (getElement("cancelRewardButton")) {
+        getElement("cancelRewardButton").style.display = "none";
+    }
+}
+
+// =============================================
+// طلبات استبدال المكافآت
+// =============================================
+
+function loadRewardRequests() {
+    if (!currentTeacher) return;
+
+    const list = getElement("rewardRequestsList");
+    if (!list) return;
+
+    list.textContent = "جاري تحميل الطلبات...";
+
+    if (requestsUnsubscribe) requestsUnsubscribe();
+
+    requestsUnsubscribe = teacherCollection("rewardRequests")
+        .where("className", "==", currentSelection.className)
+        .where("section", "==", currentSelection.section)
+        .orderBy("createdAt", "desc")
+        .onSnapshot(snapshot => {
+            let html = "";
+            let pending = 0;
+
+            snapshot.forEach(doc => {
+                const request = doc.data();
+
+                if (request.status === "pending") pending++;
+
+                html += `
+                    <div class="request-card">
+                        <h3>🎁 ${escapeHtml(request.rewardName || "مكافأة")}</h3>
+                        <div class="request-info">
+                            <p>👩🏻‍🎓 الطالب: ${escapeHtml(request.studentName || "")}</p>
+                            <p>🔑 الرمز: ${escapeHtml(request.studentCode || "")}</p>
+                            <p>⭐ النقاط: ${Number(request.price) || 0}</p>
+                            <p>الحالة: ${escapeHtml(request.status || "pending")}</p>
+                        </div>
+                    </div>
+                `;
+            });
+
+            list.innerHTML = snapshot.empty
+                ? "لا توجد طلبات لهذه الشعبة حاليًا."
+                : html;
+
+            if (getElement("pendingCount")) {
+                getElement("pendingCount").textContent = pending;
+            }
+
+        }, showFirebaseError);
+}
+
+// =============================================
+// بدء الصفحة
+// =============================================
+
+showLogin();
+prepareClassOptions();
+loadTeacherOptions();
