@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>متجر المكافآت 🎁</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap"
+        rel="stylesheet"
+    >
+    <!-- ملف تنسيق المتجر -->
+    <link rel="stylesheet" href="rewards.css">
+</head>
+<body>
+    <div class="shop-page">
+        <!-- خلفية المتجر -->
+        <div class="shop">
+            <!-- الشمس -->
+            <div class="sun"></div>
+            <!-- واجهة المتجر -->
+            <div class="shop-top">
+                <!-- المظلة -->
+                <div class="awning">
+                    <div class="awning-part"></div>
+                    <div class="awning-part"></div>
+                    <div class="awning-part"></div>
+                    <div class="awning-part"></div>
+                    <div class="awning-part"></div>
+                    <div class="awning-part"></div>
+                </div>
+                <!-- اسم المتجر -->
+                <div class="shop-sign">
+                    ⭐ متجر المكافآت ⭐
+                </div>
+            </div>
+            <!-- جسم المتجر -->
+            <div class="shop-body">
+                <!-- عنوان المتجر -->
+                <div class="shop-title">
+                    <h1>متجر المكافآت 🎁</h1>
+                    <p>
+                        اجمع نقاطك واستبدلها بمكافآت رائعة ⭐
+                    </p>
+                </div>
+                <!-- معلومات الطالب -->
+                <div class="student-box">
+                    <div class="student-label">
+                        رصيدك الحالي
+                    </div>
+                    <div class="student-points">
+                        ⭐ <span id="studentPoints">0</span> نقطة
+                    </div>
+                </div>
+                <!-- إدخال رمز الطالب -->
+                <div class="code-box">
+                    <input
+                        type="text"
+                        id="studentCode"
+                        placeholder="أدخل رمز الطالب"
+                        autocomplete="off"
+                        aria-label="رمز الطالب"
+                    >
+                    <button
+                        type="button"
+                        onclick="loadStudent()"
+                    >
+                        عرض مكافآتي ⭐
+                    </button>
+                </div>
+                <!-- رسالة الطالب -->
+                <div
+                    id="studentMessage"
+                    role="status"
+                    aria-live="polite"
+                ></div>
+                <!-- عنوان قسم المكافآت -->
+                <div class="section-title">
+                    <span aria-hidden="true">🎁</span>
+                    <h2>المكافآت</h2>
+                    <span aria-hidden="true">🎁</span>
+                </div>
+                <!-- قائمة المكافآت -->
+                <div
+                    id="rewardsList"
+                    class="rewards-list"
+                >
+                    جاري تحميل المكافآت...
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Firebase: أبقيه مرتبطًا بالمشروع الحالي -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <!-- ملفات المشروع الحالية -->
+    <script src="firebase.js"></script>
+    <script src="rewards.js"></script>
+</body>
+</html>
