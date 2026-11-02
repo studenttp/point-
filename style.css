@@ -1,0 +1,874 @@
+
+/* ===========================
+   نجوم صفي - النسخة الزرقاء
+=========================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    direction: rtl;
+    font-family: 'Cairo', sans-serif;
+    background: #EAF6FF;
+    color: #29445C;
+    overflow-x: hidden;
+}
+
+/* ===========================
+   الواجهة الرئيسية
+=========================== */
+
+.hero {
+    min-height: 100vh;
+    background:
+        radial-gradient(circle, #90CAF9 1.6px, transparent 2px) 0 0 / 70px 70px,
+        radial-gradient(circle, #BBDEFB 1.2px, transparent 2px) 35px 35px / 90px 90px,
+        radial-gradient(circle, #D6ECFF 2px, transparent 2px) 10px 50px / 110px 110px,
+        linear-gradient(180deg, #F7FCFF, #DFF1FF);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-content {
+    width: 90%;
+    max-width: 950px;
+    position: relative;
+    z-index: 2;
+}
+
+.hero-title {
+    font-size: clamp(80px, 15vw, 100px);
+    color: #1976D2;
+    text-shadow: 5px 5px 0 #fff;
+    font-weight: 900;
+    margin-bottom: 25px;
+    font-family: 'Baloo Bhaijaan 2', sans-serif;
+}
+
+.hero-characters {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 30px;
+}
+
+.boy,
+.girl {
+    width: 420px;
+    animation: float 3s ease-in-out infinite;
+}
+
+.girl {
+    transform: translateY(20px);
+}
+
+.hero p {
+    font-size: clamp(15px, 2vw, 25px);
+    color: #455D73;
+    line-height: 1.8;
+    margin-bottom: 25px;
+}
+
+/* ===========================
+   زر البداية
+=========================== */
+
+.start-btn {
+    display: inline-block;
+    padding: 15px 42px;
+    background: #42A5F5;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 50px;
+    font-size: 22px;
+    font-weight: 700;
+    box-shadow: 0 8px 20px rgba(25, 118, 210, .20);
+    transition: .3s;
+}
+
+.start-btn:hover {
+    transform: translateY(-4px);
+    background: #1976D2;
+}
+
+/* ===========================
+   البحث وإضافة الطلاب
+=========================== */
+
+.search-box {
+    width: 92%;
+    max-width: 900px;
+    margin: 70px auto;
+    background: #fff;
+    padding: 35px;
+    border: 1px solid #D6EAFB;
+    border-radius: 30px;
+    box-shadow: 0 10px 30px rgba(25, 118, 210, .10);
+    text-align: center;
+}
+
+.search-box h2 {
+    color: #1976D2;
+    font-size: 36px;
+    margin-bottom: 15px;
+}
+
+.search-box input,
+.search-box textarea {
+    width: 100%;
+    padding: 16px;
+    margin-bottom: 12px;
+    border: 2px solid #BBDEFB;
+    border-radius: 20px;
+    font-family: inherit;
+    font-size: 18px;
+    outline: none;
+    background: #FAFDFF;
+    color: #29445C;
+    transition: border-color .2s, box-shadow .2s;
+}
+
+.search-box input:focus,
+.search-box textarea:focus {
+    border-color: #42A5F5;
+    box-shadow: 0 0 0 3px rgba(66, 165, 245, .13);
+}
+
+.search-box textarea {
+    min-height: 110px;
+    resize: vertical;
+}
+
+.search-box button {
+    margin-top: 18px;
+    padding: 13px 32px;
+    background: #42A5F5;
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    font-family: inherit;
+    font-size: 18px;
+    cursor: pointer;
+    transition: .3s;
+}
+
+.search-box button:hover {
+    background: #1976D2;
+}
+
+/* بطاقات الطلاب في صفحة الإدارة */
+
+.student-card {
+    margin: 18px 0;
+    padding: 22px;
+    background: #F2F9FF;
+    border: 1px solid #D6EAFB;
+    border-right: 5px solid #64B5F6;
+    border-radius: 20px;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.student-card h3 {
+    color: #1565C0;
+    margin-bottom: 10px;
+    font-size: 22px;
+}
+
+.student-card p {
+    margin: 8px 0;
+    line-height: 1.8;
+}
+
+.student-card button {
+    margin: 8px 5px 0 0;
+}
+
+/* ===========================
+   نجم الشهر
+=========================== */
+
+.star-month {
+    width: 92%;
+    max-width: 900px;
+    margin: 80px auto;
+}
+
+.star-month h2 {
+    text-align: center;
+    color: #1976D2;
+    font-size: 34px;
+    margin-bottom: 25px;
+}
+
+/* بطاقة نجم الشهر */
+
+.winner {
+    background: linear-gradient(180deg, #F2F9FF, #FFFFFF);
+    border: 4px solid #90CAF9;
+    border-radius: 30px;
+    padding: 35px;
+    text-align: center;
+    animation: winnerGlow 2s ease-in-out infinite alternate;
+    transition: transform .4s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.winner:hover {
+    transform: translateY(-8px) scale(1.02);
+}
+
+/* توهج أزرق */
+
+@keyframes winnerGlow {
+    0% {
+        box-shadow:
+            0 0 8px rgba(100, 181, 246, .35),
+            0 0 18px rgba(100, 181, 246, .20),
+            0 0 30px rgba(100, 181, 246, .12),
+            0 12px 30px rgba(0, 0, 0, .06);
+    }
+
+    50% {
+        box-shadow:
+            0 0 15px rgba(100, 181, 246, .55),
+            0 0 30px rgba(100, 181, 246, .35),
+            0 0 45px rgba(100, 181, 246, .20),
+            0 12px 30px rgba(0, 0, 0, .06);
+    }
+
+    100% {
+        box-shadow:
+            0 0 22px rgba(100, 181, 246, .70),
+            0 0 40px rgba(100, 181, 246, .45),
+            0 0 60px rgba(100, 181, 246, .25),
+            0 12px 30px rgba(0, 0, 0, .06);
+    }
+}
+
+/* الميدالية الذهبية */
+
+.medal {
+    display: block;
+    font-size: 90px;
+    margin-bottom: 18px;
+}
+
+.winner h3 {
+    color: #1565C0;
+    font-size: 36px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.winner p {
+    font-size: 20px;
+    color: #546E7A;
+}
+
+/* ===========================
+   متجر المكافآت
+=========================== */
+
+.rewards-preview {
+    width: 92%;
+    max-width: 900px;
+    margin: 60px auto;
+    background: #fff;
+    border: 4px solid #90CAF9;
+    border-radius: 35px;
+    padding: 35px 25px 45px;
+    box-shadow: 0 10px 30px rgba(25, 118, 210, .10);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+/* الشريط أعلى المتجر */
+
+.rewards-preview::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 8px;
+    background: #64B5F6;
+}
+
+/* أيقونة الهدية */
+
+.rewards-preview-icon {
+    width: 85px;
+    height: 85px;
+    margin: 5px auto 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #E3F2FD;
+    border-radius: 50%;
+    font-size: 48px;
+}
+
+/* عنوان المتجر */
+
+.rewards-preview > h2 {
+    margin: 10px 0;
+    color: #1976D2;
+    font-size: 36px;
+    font-weight: 900;
+}
+
+/* وصف المتجر */
+
+.rewards-preview > p {
+    margin: 8px 0 25px;
+    color: #546E7A;
+    font-size: 19px;
+    line-height: 1.8;
+}
+
+/* ===========================
+   شبكة المكافآت
+=========================== */
+
+#rewards-list {
+    width: 100%;
+    margin: 30px auto 0;
+    padding: 20px 10px 35px;
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    column-gap: 12px;
+    row-gap: 55px;
+    position: relative;
+    background: #F2F9FF;
+    border-radius: 25px;
+}
+
+/* الرفوف */
+
+#rewards-list::before,
+#rewards-list::after {
+    content: "";
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    height: 11px;
+    background: #90CAF9;
+    border-radius: 5px;
+    box-shadow: 0 4px 0 #64B5F6;
+    z-index: 1;
+}
+
+#rewards-list::before {
+    top: calc(50% - 5px);
+}
+
+#rewards-list::after {
+    bottom: 15px;
+}
+
+/* بطاقة المكافأة */
+
+#rewards-list .reward-card {
+    position: relative;
+    z-index: 2;
+    min-height: 260px;
+    padding: 5px 4px 12px;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    text-align: center;
+    transition: transform .25s ease;
+}
+
+#rewards-list .reward-card:hover {
+    transform: translateY(-7px);
+}
+
+/* أيقونة المكافأة */
+
+#rewards-list .reward-icon {
+    width: 115px;
+    height: 115px;
+    margin: 0 auto 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #E3F2FD;
+    border-radius: 22px;
+    font-size: 68px;
+    line-height: 1;
+    box-shadow: 0 5px 12px rgba(25, 118, 210, .10);
+}
+
+/* اسم المكافأة */
+
+#rewards-list .reward-card h3 {
+    width: 92%;
+    margin: 0 auto 5px;
+    padding: 7px 5px;
+    background: #fff;
+    border: 2px solid #90CAF9;
+    border-radius: 14px;
+    color: #29445C;
+    font-size: 19px;
+    font-weight: 900;
+    line-height: 1.4;
+}
+
+/* سعر المكافأة */
+
+#rewards-list .reward-price {
+    margin: 3px 0;
+    color: #1565C0;
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1.5;
+}
+
+/* وصف المكافأة */
+
+#rewards-list .reward-card p {
+    width: 95%;
+    min-height: 40px;
+    margin: 3px auto;
+    color: #546E7A;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+/* المكافآت القادمة وحالة التحميل */
+
+#rewards-list .rewards-loading,
+#rewards-list .rewards-coming {
+    grid-column: 1 / -1;
+    position: relative;
+    z-index: 5;
+    background: #F2F9FF;
+    border: 2px dashed #90CAF9;
+    border-radius: 22px;
+    padding: 22px;
+    color: #546E7A;
+    text-align: center;
+}
+
+#rewards-list .rewards-coming h3 {
+    color: #1976D2;
+    font-size: 22px;
+    margin: 5px 0 10px;
+}
+
+#rewards-list .rewards-coming p {
+    color: #546E7A;
+    font-size: 15px;
+    line-height: 1.8;
+}
+
+.coming-icon {
+    font-size: 38px;
+    margin-bottom: 5px;
+}
+
+/* ===========================
+   دليل النقاط
+=========================== */
+
+.guide {
+    width: 92%;
+    max-width: 1100px;
+    margin: 80px auto;
+}
+
+.guide-title {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 35px;
+}
+
+.guide-title h2 {
+    color: #1976D2;
+    font-size: 38px;
+}
+
+.small-character {
+    width: 55px;
+    height: auto;
+}
+
+/* بطاقات دليل النقاط */
+
+.cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 28px;
+}
+
+.card {
+    background: #fff;
+    border-radius: 28px;
+    padding: 28px;
+    text-align: center;
+    box-shadow: 0 12px 25px rgba(25, 118, 210, .08);
+    border-top: 8px solid #90CAF9;
+    transition: .35s;
+    min-height: 240px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 18px 35px rgba(25, 118, 210, .14);
+}
+
+.card span {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #E3F2FD;
+    color: #1565C0;
+    font-size: 34px;
+    font-weight: bold;
+    margin-bottom: 18px;
+}
+
+.card h3 {
+    font-size: 25px;
+    color: #29445C;
+    margin-bottom: 12px;
+}
+
+.card p {
+    font-size: 17px;
+    line-height: 1.8;
+    color: #546E7A;
+}
+
+/* بطاقات الخصم: الإبقاء على اللون الأحمر للتنبيه */
+
+.danger {
+    border-top-color: #EF5350;
+}
+
+.danger span {
+    background: #FFEBEE;
+    color: #E53935;
+}
+
+/* ===========================
+   الفوتر
+=========================== */
+
+footer,
+.footer {
+    width: 100%;
+    margin-top: 80px;
+    background: #D6ECFF;
+    padding: 25px 15px;
+    text-align: center;
+    box-shadow: 0 -6px 18px rgba(25, 118, 210, .08);
+}
+
+footer p,
+.footer p {
+    margin: 0;
+    color: #29445C;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.8;
+}
+
+/* ===========================
+   الحركة
+=========================== */
+
+@keyframes float {
+    0% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+
+    100% {
+        transform: translateY(0);
+    }
+}
+
+/* ===========================
+   الجوال
+=========================== */
+
+@media (max-width: 768px) {
+    .hero {
+        min-height: 90vh;
+        padding-top: 0;
+    }
+
+    .hero-content {
+        margin-top: 0;
+    }
+
+    .hero-title {
+        font-size: 60px;
+    }
+
+    .hero p {
+        font-size: 18px;
+        line-height: 1.8;
+    }
+
+    .hero-characters {
+        gap: 12px;
+    }
+
+    .boy,
+    .girl {
+        width: 300px;
+        max-width: none;
+    }
+
+    .search-box {
+        padding: 25px;
+    }
+
+    .search-box h2 {
+        font-size: 28px;
+    }
+
+    .search-box input,
+    .search-box textarea {
+        font-size: 16px;
+    }
+
+    .search-box button {
+        width: 100%;
+        font-size: 18px;
+    }
+
+    .star-month h2 {
+        font-size: 28px;
+    }
+
+    .winner {
+        padding: 25px;
+    }
+
+    .winner h3 {
+        font-size: 28px;
+    }
+
+    .medal {
+        font-size: 70px;
+    }
+
+    /* متجر المكافآت في الجوال */
+
+    .rewards-preview {
+        width: 94%;
+        padding: 30px 12px 35px;
+        border-radius: 30px;
+    }
+
+    .rewards-preview-icon {
+        width: 70px;
+        height: 70px;
+        font-size: 40px;
+    }
+
+    .rewards-preview > h2 {
+        font-size: 28px;
+    }
+
+    .rewards-preview > p {
+        font-size: 16px;
+    }
+
+    #rewards-list {
+        grid-template-columns: repeat(2, 1fr) !important;
+        column-gap: 5px;
+        row-gap: 40px;
+        padding: 18px 4px 30px;
+    }
+
+    #rewards-list::before {
+        top: calc(50% - 5px);
+        left: 5px;
+        right: 5px;
+    }
+
+    #rewards-list::after {
+        bottom: 12px;
+        left: 5px;
+        right: 5px;
+    }
+
+    #rewards-list .reward-card {
+        min-height: 225px;
+        padding: 4px 2px 10px;
+    }
+
+    #rewards-list .reward-icon {
+        width: 82px;
+        height: 82px;
+        font-size: 47px;
+        border-radius: 17px;
+    }
+
+    #rewards-list .reward-card h3 {
+        width: 95%;
+        font-size: 14px;
+        border-width: 2px;
+        border-radius: 11px;
+        padding: 5px 3px;
+    }
+
+    #rewards-list .reward-price {
+        font-size: 13px;
+    }
+
+    #rewards-list .reward-card p {
+        font-size: 11px;
+        line-height: 1.5;
+    }
+
+    .guide-title h2 {
+        font-size: 28px;
+    }
+
+    .small-character {
+        width: 38px;
+    }
+
+    .cards {
+        grid-template-columns: 1fr;
+    }
+
+    .card {
+        min-height: 210px;
+        padding: 22px;
+    }
+
+    .card span {
+        width: 70px;
+        height: 70px;
+        font-size: 28px;
+    }
+
+    .card h3 {
+        font-size: 22px;
+    }
+
+    .card p {
+        font-size: 16px;
+    }
+
+    footer,
+    .footer {
+        padding: 22px 12px;
+    }
+
+    footer p,
+    .footer p {
+        font-size: 16px;
+    }
+}
+
+/* ===========================
+   الجوال الصغير جدًا
+=========================== */
+
+@media (max-width: 400px) {
+    .hero-title {
+        font-size: 52px;
+    }
+
+    #rewards-list {
+        grid-template-columns: repeat(2, 1fr) !important;
+        column-gap: 3px;
+        row-gap: 35px;
+    }
+
+    #rewards-list .reward-icon {
+        width: 72px;
+        height: 72px;
+        font-size: 40px;
+    }
+
+    #rewards-list .reward-card h3 {
+        font-size: 13px;
+    }
+
+    #rewards-list .reward-price {
+        font-size: 12px;
+    }
+}
+
+/* ===========================
+   الآيباد
+=========================== */
+
+@media (min-width: 769px) and (max-width: 1200px) {
+    .rewards-preview {
+        width: 92%;
+        max-width: 850px;
+        padding: 30px 18px 40px;
+        border-radius: 30px;
+    }
+
+    .rewards-preview-icon {
+        width: 70px;
+        height: 70px;
+        font-size: 40px;
+    }
+
+    .rewards-preview > h2 {
+        font-size: 30px;
+    }
+
+    .rewards-preview > p {
+        font-size: 17px;
+    }
+
+    #rewards-list {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 45px 10px;
+    }
+
+    #rewards-list .reward-icon {
+        width: 100px;
+        height: 100px;
+        font-size: 58px;
+    }
+
+    #rewards-list .reward-card h3 {
+        font-size: 17px;
+    }
+}
