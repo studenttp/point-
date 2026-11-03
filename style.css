@@ -883,7 +883,7 @@ footer p,
 /* تصغير صورة الشخصيات على الهاتف */
 @media screen and (max-width: 768px) {
     .hero-characters .class-image {
-        width: 70px !important;
+        width: 100px !important;
         max-width: 70px !important;
         height: auto !important;
     }
