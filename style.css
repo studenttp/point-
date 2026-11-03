@@ -880,3 +880,11 @@ footer p,
     object-fit: contain;
     margin: 0 auto;
 }
+/* تصغير صورة الشخصيات على الهاتف فقط */
+@media (max-width: 600px) {
+    .hero-characters .class-image {
+        width: 90px;
+        max-width: 35%;
+        height: auto;
+    }
+}
