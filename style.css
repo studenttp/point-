@@ -872,3 +872,11 @@ footer p,
         font-size: 17px;
     }
 }
+.hero-characters .class-image {
+    display: block;
+    width: 220px;
+    max-width: 80%;
+    height: auto;
+    object-fit: contain;
+    margin: 0 auto;
+}
