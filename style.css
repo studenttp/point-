@@ -875,8 +875,8 @@ footer p,
 .hero-characters .class-image {
     display: block;
     width: 100px;
-    max-width: 80%;
-    height: auto;
+    max-width: 40%;
+    height: 30%;
     object-fit: contain;
     margin: 0 auto;
 }
