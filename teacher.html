@@ -26,46 +26,42 @@
         <h1>لوحة المعلمة</h1>
         <p>مرحبًا بكِ في منصة نجوم صَفّي ⭐</p>
 
-        <!-- اختيار المعلمة -->
         <div class="login-form-group">
             <label for="teacherSelect">اسم المعلمة</label>
-
             <select id="teacherSelect" autocomplete="username">
                 <option value="">جاري تحميل أسماء المعلمات...</option>
             </select>
         </div>
 
-        <!-- الرمز الخاص بالمعلمة -->
         <div class="login-form-group">
             <label for="teacherCode">الرمز الخاص بالمعلمة</label>
-
             <input
                 type="password"
                 id="teacherCode"
                 placeholder="أدخلي رمز الدخول الخاص بكِ"
-                autocomplete="current-password"
-                required>
+                autocomplete="current-password">
+            <button
+                type="button"
+                id="toggleCode"
+                class="cancel-button">
+                إظهار الرمز
+            </button>
         </div>
 
-        <!-- اختيار الصف -->
         <div class="login-form-group">
             <label for="classSelect">الصف</label>
-
             <select id="classSelect" disabled>
                 <option value="">اختاري المعلمة أولًا</option>
             </select>
         </div>
 
-        <!-- اختيار الشعبة -->
         <div class="login-form-group">
             <label for="sectionSelect">الشعبة</label>
-
             <select id="sectionSelect" disabled>
                 <option value="">اختاري الصف أولًا</option>
             </select>
         </div>
 
-        <!-- زر الدخول -->
         <button
             type="button"
             class="main-button"
@@ -74,7 +70,149 @@
             دخول لوحة المعلمة
         </button>
 
+        <button
+            type="button"
+            class="cancel-button"
+            id="showRegisterButton"
+            onclick="showTeacherRegistration()">
+            تسجيل معلمة جديدة
+        </button>
+
         <p id="loginError" role="alert" aria-live="polite"></p>
+    </div>
+
+    <!-- نموذج تسجيل معلمة جديدة -->
+    <div
+        id="teacherRegistrationBox"
+        class="login-box"
+        style="display:none;">
+
+        <div class="login-icon">👩🏻‍🏫</div>
+
+        <h1>تسجيل معلمة جديدة</h1>
+        <p>أنشئي حسابكِ في منصة نجوم صَفّي ⭐</p>
+
+        <form id="teacherRegistrationForm"
+              onsubmit="registerTeacher(event)">
+
+            <div class="login-form-group">
+                <label for="registerTeacherName">اسم المعلمة الكامل</label>
+                <input
+                    type="text"
+                    id="registerTeacherName"
+                    autocomplete="name"
+                    required>
+            </div>
+
+            <div class="login-form-group">
+                <label for="registerSchoolName">اسم المدرسة</label>
+                <input
+                    type="text"
+                    id="registerSchoolName"
+                    value="مدرسة السويح للتعليم الأساسي (١-١٠)"
+                    required>
+            </div>
+
+            <div class="login-form-group">
+                <label for="registerSubjectName">المادة الدراسية</label>
+                <input
+                    type="text"
+                    id="registerSubjectName"
+                    placeholder="مثال: الرياضيات"
+                    required>
+            </div>
+
+            <div class="login-form-group">
+                <label for="registerTeacherCode">رمز الدخول الخاص بكِ</label>
+                <input
+                    type="password"
+                    id="registerTeacherCode"
+                    autocomplete="new-password"
+                    minlength="8"
+                    placeholder="8 أحرف أو أرقام على الأقل"
+                    required>
+            </div>
+
+            <div class="login-form-group">
+                <label for="confirmTeacherCode">تأكيد رمز الدخول</label>
+                <input
+                    type="password"
+                    id="confirmTeacherCode"
+                    autocomplete="new-password"
+                    minlength="8"
+                    required>
+            </div>
+
+            <h3>📚 الصفوف والشعب التي تدرّسينها</h3>
+            <p class="section-description">
+                اختاري الصفوف، ثم حددي الشعب التابعة لكل صف.
+            </p>
+
+            <div id="registrationClasses">
+
+                <div class="registration-class-row">
+                    <div class="login-form-group">
+                        <label>الصف</label>
+                        <select class="register-class-select" required>
+                            <option value="">اختاري الصف</option>
+                            <option value="الصف الأول">الصف الأول</option>
+                            <option value="الصف الثاني">الصف الثاني</option>
+                            <option value="الصف الثالث">الصف الثالث</option>
+                            <option value="الصف الرابع">الصف الرابع</option>
+                            <option value="الصف الخامس">الصف الخامس</option>
+                            <option value="الصف السادس">الصف السادس</option>
+                            <option value="الصف السابع">الصف السابع</option>
+                            <option value="الصف الثامن">الصف الثامن</option>
+                            <option value="الصف التاسع">الصف التاسع</option>
+                            <option value="الصف العاشر">الصف العاشر</option>
+                        </select>
+                    </div>
+
+                    <div class="login-form-group">
+                        <label>الشعب</label>
+                        <div class="register-sections">
+                            <label><input type="checkbox" value="أ"> أ</label>
+                            <label><input type="checkbox" value="ب"> ب</label>
+                            <label><input type="checkbox" value="ج"> ج</label>
+                            <label><input type="checkbox" value="د"> د</label>
+                            <label><input type="checkbox" value="هـ"> هـ</label>
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="cancel-button remove-class-button"
+                        onclick="removeRegistrationClass(this)">
+                        حذف الصف
+                    </button>
+                </div>
+
+            </div>
+
+            <button
+                type="button"
+                class="cancel-button"
+                id="addRegistrationClassButton"
+                onclick="addRegistrationClass()">
+                ➕ إضافة صف آخر
+            </button>
+
+            <button
+                type="submit"
+                class="main-button"
+                id="registerTeacherButton">
+                إنشاء حساب المعلمة
+            </button>
+
+            <button
+                type="button"
+                class="cancel-button"
+                onclick="hideTeacherRegistration()">
+                العودة إلى تسجيل الدخول
+            </button>
+
+            <p id="registrationError" role="alert" aria-live="polite"></p>
+        </form>
     </div>
 
     <!-- لوحة التحكم -->
@@ -103,7 +241,6 @@
         <!-- بيانات الصف والمادة -->
         <section class="panel">
             <h2>🏫 بيانات الصف والمادة</h2>
-
             <p class="section-description">
                 بيانات الصف والشعبة المختارين.
             </p>
@@ -125,7 +262,6 @@
         <!-- إدارة الطلاب -->
         <section class="panel">
             <h2>👩🏻‍🎓 إدارة الطلاب</h2>
-
             <p class="section-description">
                 أضيفي الطلاب أو حدّثي بياناتهم.
             </p>
@@ -181,7 +317,6 @@
         <!-- ملفات الطلاب الموحدة -->
         <section class="panel">
             <h2>👤 ملفات الطلاب الموحدة</h2>
-
             <p class="section-description">
                 هذا القسم مخصص لعرض ملفات الطلاب المشتركة عند إعداد
                 نظام الربط الموحد بين المدارس والمواد.
@@ -195,7 +330,6 @@
         <!-- إدارة المكافآت -->
         <section class="panel" id="rewardsManager">
             <h2>🎁 إدارة المكافآت</h2>
-
             <p class="section-description">
                 أضيفي المكافآت التي يمكن للطلاب استبدال نقاطهم بها.
             </p>
@@ -266,7 +400,6 @@
             </div>
         </section>
 
-        <!-- تذييل اللوحة -->
         <footer>
             <p>نجوم صَفّي ⭐</p>
             <p>إعداد: أ. مآثر محمد الغنبوصية</p>
@@ -276,10 +409,14 @@
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 
-    <!-- إعدادات Firebase الحالية -->
+    <!-- إعدادات Firebase -->
     <script src="firebase.js"></script>
+
+    <!-- منطق لوحة المعلمة -->
     <script src="teacher.js"></script>
 
 </body>
