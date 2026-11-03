@@ -4,10 +4,13 @@
    تسجيل المعلمات وإدارة بياناتهن
 ========================================= */
 
-const auth = firebase.auth();
-const db = firebase.firestore();
-const functions = firebase.app().functions("us-central1");
+const auth = teacherAuth;
+const db = teacherDB;
+const functions = teacherApp.functions("us-central1");
 
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+    .catch(console.error); 
+    
 // إبقاء تسجيل الدخول على الجهاز حتى تسجيل الخروج يدويًا
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
     .catch((error) => console.error("خطأ في إعداد الجلسة:", error));
