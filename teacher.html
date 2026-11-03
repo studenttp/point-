@@ -2,428 +2,507 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>لوحة المعلمة | نجوم صَفّي</title>
+  <title>لوحة المعلمة | نجوم صَفّي</title>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-    <link
-        href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap"
-        rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap"
+    rel="stylesheet">
 
-    <link rel="stylesheet" href="teacher.css">
+  <link rel="stylesheet" href="teacher.css">
 </head>
 
 <body>
 
-    <!-- تسجيل دخول المعلمة -->
-    <div id="loginBox" class="login-box">
-        <div class="login-icon">👩🏻‍🏫</div>
+  <!-- تسجيل دخول المعلمة بالرمز فقط -->
+  <div id="loginBox" class="login-box">
+    <div class="login-icon">👩🏻‍🏫</div>
 
-        <h1>لوحة المعلمة</h1>
-        <p>مرحبًا بكِ في منصة نجوم صَفّي ⭐</p>
+    <h1>لوحة المعلمة</h1>
+    <p>مرحبًا بكِ في منصة نجوم صَفّي ⭐</p>
 
-        <div class="login-form-group">
-            <label for="teacherSelect">اسم المعلمة</label>
-            <select id="teacherSelect" autocomplete="username">
-                <option value="">جاري تحميل أسماء المعلمات...</option>
-            </select>
-        </div>
+    <div class="login-form-group">
+      <label for="teacherCode">رمز الدخول الخاص بالمعلمة</label>
 
-        <div class="login-form-group">
-            <label for="teacherCode">الرمز الخاص بالمعلمة</label>
-            <input
-                type="password"
-                id="teacherCode"
-                placeholder="أدخلي رمز الدخول الخاص بكِ"
-                autocomplete="current-password">
-            <button
-                type="button"
-                id="toggleCode"
-                class="cancel-button">
-                إظهار الرمز
-            </button>
-        </div>
+      <input
+        type="password"
+        id="teacherCode"
+        placeholder="أدخلي رمز الدخول"
+        autocomplete="current-password"
+        required>
 
-        <div class="login-form-group">
-            <label for="classSelect">الصف</label>
-            <select id="classSelect" disabled>
-                <option value="">اختاري المعلمة أولًا</option>
-            </select>
-        </div>
-
-        <div class="login-form-group">
-            <label for="sectionSelect">الشعبة</label>
-            <select id="sectionSelect" disabled>
-                <option value="">اختاري الصف أولًا</option>
-            </select>
-        </div>
-
-        <button
-            type="button"
-            class="main-button"
-            id="teacherLoginButton"
-            onclick="loginWithSelection()">
-            دخول لوحة المعلمة
-        </button>
-
-        <button
-            type="button"
-            class="cancel-button"
-            id="showRegisterButton"
-            onclick="showTeacherRegistration()">
-            تسجيل معلمة جديدة
-        </button>
-
-        <p id="loginError" role="alert" aria-live="polite"></p>
+      <button
+        type="button"
+        id="toggleCode"
+        class="cancel-button">
+        إظهار الرمز
+      </button>
     </div>
 
-    <!-- نموذج تسجيل معلمة جديدة -->
-    <div
-        id="teacherRegistrationBox"
-        class="login-box"
+    <button
+      type="button"
+      class="main-button"
+      id="teacherLoginButton">
+      دخول لوحة المعلمة
+    </button>
+
+    <button
+      type="button"
+      class="cancel-button"
+      id="showRegisterButton">
+      تسجيل معلمة جديدة
+    </button>
+
+    <p id="loginError" role="alert" aria-live="polite"></p>
+  </div>
+
+
+  <!-- تسجيل معلمة جديدة -->
+  <div
+    id="teacherRegistrationBox"
+    class="login-box"
+    style="display:none;">
+
+    <div class="login-icon">👩🏻‍🏫</div>
+
+    <h1>تسجيل معلمة جديدة</h1>
+    <p>أنشئي حسابكِ في منصة نجوم صَفّي ⭐</p>
+
+    <form id="teacherRegistrationForm">
+
+      <div class="login-form-group">
+        <label for="registerTeacherName">اسم المعلمة الكامل</label>
+        <input
+          type="text"
+          id="registerTeacherName"
+          autocomplete="name"
+          required>
+      </div>
+
+      <div class="login-form-group">
+        <label for="registerSchoolName">اسم المدرسة</label>
+        <input
+          type="text"
+          id="registerSchoolName"
+          value="مدرسة السويح للتعليم الأساسي (١-١٠)"
+          required>
+      </div>
+
+      <div class="login-form-group">
+        <label for="registerSubjectName">المادة الدراسية</label>
+        <input
+          type="text"
+          id="registerSubjectName"
+          placeholder="مثال: الرياضيات"
+          required>
+      </div>
+
+      <div class="login-form-group">
+        <label for="registerTeacherCode">إنشاء رمز الدخول</label>
+        <input
+          type="password"
+          id="registerTeacherCode"
+          autocomplete="new-password"
+          minlength="8"
+          placeholder="8 أحرف أو أرقام على الأقل"
+          required>
+      </div>
+
+      <div class="login-form-group">
+        <label for="confirmTeacherCode">تأكيد رمز الدخول</label>
+        <input
+          type="password"
+          id="confirmTeacherCode"
+          autocomplete="new-password"
+          minlength="8"
+          required>
+      </div>
+
+      <h3>📚 الصفوف والشعب التي تدرّسينها</h3>
+      <p class="section-description">
+        اختاري الصفوف، ثم حددي الشعب التابعة لكل صف.
+      </p>
+
+      <div id="registrationClasses">
+
+        <div class="registration-class-row">
+
+          <div class="login-form-group">
+            <label>الصف</label>
+
+            <select class="register-class-select" required>
+              <option value="">اختاري الصف</option>
+              <option value="الصف الأول">الصف الأول</option>
+              <option value="الصف الثاني">الصف الثاني</option>
+              <option value="الصف الثالث">الصف الثالث</option>
+              <option value="الصف الرابع">الصف الرابع</option>
+              <option value="الصف الخامس">الصف الخامس</option>
+              <option value="الصف السادس">الصف السادس</option>
+              <option value="الصف السابع">الصف السابع</option>
+              <option value="الصف الثامن">الصف الثامن</option>
+              <option value="الصف التاسع">الصف التاسع</option>
+              <option value="الصف العاشر">الصف العاشر</option>
+            </select>
+          </div>
+
+          <div class="login-form-group">
+            <label>الشعب</label>
+
+            <div class="register-sections">
+              <label><input type="checkbox" value="أ"> أ</label>
+              <label><input type="checkbox" value="ب"> ب</label>
+              <label><input type="checkbox" value="ج"> ج</label>
+              <label><input type="checkbox" value="د"> د</label>
+              <label><input type="checkbox" value="هـ"> هـ</label>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            class="cancel-button remove-class-button"
+            onclick="removeRegistrationClass(this)">
+            حذف الصف
+          </button>
+
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="cancel-button"
+        id="addRegistrationClassButton"
+        onclick="addRegistrationClass()">
+        ➕ إضافة صف آخر
+      </button>
+
+      <button
+        type="submit"
+        class="main-button"
+        id="registerTeacherButton">
+        إنشاء حساب المعلمة
+      </button>
+
+      <button
+        type="button"
+        class="cancel-button"
+        onclick="hideTeacherRegistration()">
+        العودة إلى تسجيل الدخول
+      </button>
+
+      <p id="registrationError" role="alert" aria-live="polite"></p>
+
+    </form>
+  </div>
+
+
+  <!-- لوحة التحكم -->
+  <main id="dashboard" class="dashboard" style="display:none;">
+
+    <header class="dashboard-header">
+      <h1>🌟 لوحة المعلمة</h1>
+      <p>إدارة الطلاب والنقاط والمكافآت في مكان واحد</p>
+
+      <div class="teacher-info">
+        <p>المعلمة: <strong id="teacherName">المعلمة</strong></p>
+        <p>المدرسة: <strong id="schoolName">المدرسة</strong></p>
+        <p>الصف: <strong id="selectedClass">—</strong></p>
+        <p>الشعبة: <strong id="selectedSection">—</strong></p>
+      </div>
+
+      <button
+        type="button"
+        class="cancel-button"
+        id="logoutButton">
+        تسجيل الخروج
+      </button>
+    </header>
+
+
+    <!-- اختيار الصف والشعبة بعد الدخول -->
+    <section class="panel">
+      <h2>🏫 الصف والشعبة</h2>
+      <p class="section-description">
+        اختاري الصف والشعبة لإدارة الطلاب.
+      </p>
+
+      <div class="form-grid">
+        <div class="login-form-group">
+          <label for="activeClassSelect">الصف</label>
+          <select id="activeClassSelect"></select>
+        </div>
+
+        <div class="login-form-group">
+          <label for="activeSectionSelect">الشعبة</label>
+          <select id="activeSectionSelect"></select>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <input
+          type="text"
+          id="className"
+          placeholder="الصف المختار"
+          readonly>
+
+        <input
+          type="text"
+          id="subjectName"
+          placeholder="المادة الدراسية"
+          readonly>
+      </div>
+    </section>
+
+
+    <!-- إدارة الطلاب -->
+    <section class="panel">
+      <h2>👩🏻‍🎓 إدارة الطلاب</h2>
+      <p class="section-description">
+        أضيفي الطلاب أو حدّثي بياناتهم.
+      </p>
+
+      <div class="form-grid">
+        <input
+          type="text"
+          id="studentName"
+          placeholder="اسم الطالب">
+
+        <input
+          type="text"
+          id="studentCode"
+          placeholder="الرقم المدرسي أو رمز الطالب">
+
+        <input
+          type="number"
+          id="studentPoints"
+          placeholder="النقاط الأولية"
+          min="0"
+          value="0">
+      </div>
+
+      <textarea
+        id="studentMessage"
+        placeholder="💬 تعليق للطالب"
+        rows="3"></textarea>
+
+      <button
+        type="button"
+        class="main-button"
+        id="studentSaveButton">
+        ➕ إضافة الطالب
+      </button>
+
+      <button
+        type="button"
+        class="cancel-button"
+        id="cancelStudentButton"
         style="display:none;">
+        إلغاء التعديل
+      </button>
 
-        <div class="login-icon">👩🏻‍🏫</div>
+      <div id="studentStatus" role="status" aria-live="polite"></div>
 
-        <h1>تسجيل معلمة جديدة</h1>
-        <p>أنشئي حسابكِ في منصة نجوم صَفّي ⭐</p>
-
-        <form id="teacherRegistrationForm"
-              onsubmit="registerTeacher(event)">
-
-            <div class="login-form-group">
-                <label for="registerTeacherName">اسم المعلمة الكامل</label>
-                <input
-                    type="text"
-                    id="registerTeacherName"
-                    autocomplete="name"
-                    required>
-            </div>
-
-            <div class="login-form-group">
-                <label for="registerSchoolName">اسم المدرسة</label>
-                <input
-                    type="text"
-                    id="registerSchoolName"
-                    value="مدرسة السويح للتعليم الأساسي (١-١٠)"
-                    required>
-            </div>
-
-            <div class="login-form-group">
-                <label for="registerSubjectName">المادة الدراسية</label>
-                <input
-                    type="text"
-                    id="registerSubjectName"
-                    placeholder="مثال: الرياضيات"
-                    required>
-            </div>
-
-            <div class="login-form-group">
-                <label for="registerTeacherCode">رمز الدخول الخاص بكِ</label>
-                <input
-                    type="password"
-                    id="registerTeacherCode"
-                    autocomplete="new-password"
-                    minlength="8"
-                    placeholder="8 أحرف أو أرقام على الأقل"
-                    required>
-            </div>
-
-            <div class="login-form-group">
-                <label for="confirmTeacherCode">تأكيد رمز الدخول</label>
-                <input
-                    type="password"
-                    id="confirmTeacherCode"
-                    autocomplete="new-password"
-                    minlength="8"
-                    required>
-            </div>
-
-            <h3>📚 الصفوف والشعب التي تدرّسينها</h3>
-            <p class="section-description">
-                اختاري الصفوف، ثم حددي الشعب التابعة لكل صف.
-            </p>
-
-            <div id="registrationClasses">
-
-                <div class="registration-class-row">
-                    <div class="login-form-group">
-                        <label>الصف</label>
-                        <select class="register-class-select" required>
-                            <option value="">اختاري الصف</option>
-                            <option value="الصف الأول">الصف الأول</option>
-                            <option value="الصف الثاني">الصف الثاني</option>
-                            <option value="الصف الثالث">الصف الثالث</option>
-                            <option value="الصف الرابع">الصف الرابع</option>
-                            <option value="الصف الخامس">الصف الخامس</option>
-                            <option value="الصف السادس">الصف السادس</option>
-                            <option value="الصف السابع">الصف السابع</option>
-                            <option value="الصف الثامن">الصف الثامن</option>
-                            <option value="الصف التاسع">الصف التاسع</option>
-                            <option value="الصف العاشر">الصف العاشر</option>
-                        </select>
-                    </div>
-
-                    <div class="login-form-group">
-                        <label>الشعب</label>
-                        <div class="register-sections">
-                            <label><input type="checkbox" value="أ"> أ</label>
-                            <label><input type="checkbox" value="ب"> ب</label>
-                            <label><input type="checkbox" value="ج"> ج</label>
-                            <label><input type="checkbox" value="د"> د</label>
-                            <label><input type="checkbox" value="هـ"> هـ</label>
-                        </div>
-                    </div>
-
-                    <button
-                        type="button"
-                        class="cancel-button remove-class-button"
-                        onclick="removeRegistrationClass(this)">
-                        حذف الصف
-                    </button>
-                </div>
-
-            </div>
-
-            <button
-                type="button"
-                class="cancel-button"
-                id="addRegistrationClassButton"
-                onclick="addRegistrationClass()">
-                ➕ إضافة صف آخر
-            </button>
-
-            <button
-                type="submit"
-                class="main-button"
-                id="registerTeacherButton">
-                إنشاء حساب المعلمة
-            </button>
-
-            <button
-                type="button"
-                class="cancel-button"
-                onclick="hideTeacherRegistration()">
-                العودة إلى تسجيل الدخول
-            </button>
-
-            <p id="registrationError" role="alert" aria-live="polite"></p>
-        </form>
-    </div>
-
-    <!-- لوحة التحكم -->
-    <main id="dashboard" class="dashboard" style="display:none;">
-
-        <header class="dashboard-header">
-            <h1>🌟 لوحة المعلمة</h1>
-            <p>إدارة الطلاب والنقاط والمكافآت في مكان واحد</p>
-
-            <div class="teacher-info">
-                <p>المعلمة: <strong id="teacherName">المعلمة</strong></p>
-                <p>المدرسة: <strong id="schoolName">المدرسة</strong></p>
-                <p>الصف: <strong id="selectedClass">—</strong></p>
-                <p>الشعبة: <strong id="selectedSection">—</strong></p>
-            </div>
-
-            <button
-                type="button"
-                class="cancel-button"
-                id="logoutButton"
-                onclick="logout()">
-                تسجيل الخروج / تغيير المعلمة
-            </button>
-        </header>
-
-        <!-- بيانات الصف والمادة -->
-        <section class="panel">
-            <h2>🏫 بيانات الصف والمادة</h2>
-            <p class="section-description">
-                بيانات الصف والشعبة المختارين.
-            </p>
-
-            <div class="form-grid">
-                <input
-                    type="text"
-                    id="className"
-                    placeholder="الصف والشعبة"
-                    readonly>
-
-                <input
-                    type="text"
-                    id="subjectName"
-                    placeholder="المادة الدراسية">
-            </div>
-        </section>
-
-        <!-- إدارة الطلاب -->
-        <section class="panel">
-            <h2>👩🏻‍🎓 إدارة الطلاب</h2>
-            <p class="section-description">
-                أضيفي الطلاب أو حدّثي بياناتهم.
-            </p>
-
-            <div class="form-grid">
-                <input
-                    type="text"
-                    id="studentName"
-                    placeholder="اسم الطالب">
-
-                <input
-                    type="text"
-                    id="studentCode"
-                    placeholder="الرقم المدرسي أو رمز الطالب">
-
-                <input
-                    type="number"
-                    id="studentPoints"
-                    placeholder="النقاط الأولية"
-                    min="0">
-            </div>
-
-            <textarea
-                id="studentMessage"
-                placeholder="💬 تعليق للطالب"
-                rows="3"></textarea>
-
-            <button
-                type="button"
-                class="main-button"
-                id="studentSaveButton"
-                onclick="addStudent()">
-                ➕ إضافة الطالب
-            </button>
-
-            <button
-                type="button"
-                class="cancel-button"
-                id="cancelStudentButton"
-                onclick="cancelStudentEdit()"
-                style="display:none;">
-                إلغاء التعديل
-            </button>
-
-            <div id="studentStatus" role="status"></div>
-
-            <h3 class="sub-title">📋 قائمة الطلاب</h3>
-            <div id="studentsList">
-                اختاري المعلمة والصف والشعبة أولًا.
-            </div>
-        </section>
-
-        <!-- ملفات الطلاب الموحدة -->
-        <section class="panel">
-            <h2>👤 ملفات الطلاب الموحدة</h2>
-            <p class="section-description">
-                هذا القسم مخصص لعرض ملفات الطلاب المشتركة عند إعداد
-                نظام الربط الموحد بين المدارس والمواد.
-            </p>
-
-            <div id="unifiedStudentsList">
-                لم يتم إعداد الربط الموحد بعد.
-            </div>
-        </section>
-
-        <!-- إدارة المكافآت -->
-        <section class="panel" id="rewardsManager">
-            <h2>🎁 إدارة المكافآت</h2>
-            <p class="section-description">
-                أضيفي المكافآت التي يمكن للطلاب استبدال نقاطهم بها.
-            </p>
-
-            <div class="form-grid">
-                <input
-                    type="text"
-                    id="rewardName"
-                    placeholder="اسم المكافأة">
-
-                <input
-                    type="number"
-                    id="rewardPrice"
-                    placeholder="عدد النقاط"
-                    min="1">
-
-                <input
-                    type="text"
-                    id="rewardIcon"
-                    placeholder="رمز المكافأة مثل 🎁">
-            </div>
-
-            <textarea
-                id="rewardDescription"
-                placeholder="وصف المكافأة"
-                rows="3"></textarea>
-
-            <button
-                type="button"
-                class="main-button"
-                id="rewardSaveButton"
-                onclick="saveReward()">
-                ➕ إضافة المكافأة
-            </button>
-
-            <button
-                type="button"
-                class="cancel-button"
-                id="cancelRewardButton"
-                onclick="cancelRewardEdit()"
-                style="display:none;">
-                إلغاء التعديل
-            </button>
-
-            <div id="rewardStatus" role="status"></div>
-
-            <h3 class="sub-title">🛍️ المكافآت الحالية</h3>
-            <div id="rewardsManagerList">
-                اختاري الشعبة لعرض المكافآت.
-            </div>
-        </section>
-
-        <!-- طلبات المكافآت -->
-        <section class="panel requests-panel">
-            <div class="requests-title">
-                <div>
-                    <h2>🔔 طلبات المكافآت</h2>
-                    <p class="section-description">
-                        تابعي طلبات الطلاب.
-                    </p>
-                </div>
-
-                <div id="pendingCount" class="pending-count">0</div>
-            </div>
-
-            <div id="rewardRequestsList">
-                اختاري الشعبة لعرض الطلبات.
-            </div>
-        </section>
-
-        <footer>
-            <p>نجوم صَفّي ⭐</p>
-            <p>إعداد: أ. مآثر محمد الغنبوصية</p>
-        </footer>
-
-    </main>
+      <h3 class="sub-title">📋 قائمة الطلاب</h3>
+      <div id="studentsList">
+        اختاري الصف والشعبة لعرض الطلاب.
+      </div>
+    </section>
 
 
-   
+    <!-- ملفات الطلاب الموحدة -->
+    <section class="panel">
+      <h2>👤 ملفات الطلاب الموحدة</h2>
+      <p class="section-description">
+        هذا القسم مخصص للربط الموحد بين المدارس والمواد.
+      </p>
 
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
+      <div id="unifiedStudentsList">
+        لم يتم إعداد الربط الموحد بعد.
+      </div>
+    </section>
 
-<!-- إعدادات المشروع القديم: لا نغيّر ملفه -->
-<script src="firebase.js"></script>
 
-<!-- إعدادات المشروع الجديد للمعلمات -->
-<script src="teacher-firebase.js"></script>
+    <!-- إدارة المكافآت -->
+    <section class="panel" id="rewardsManager">
+      <h2>🎁 إدارة المكافآت</h2>
+      <p class="section-description">
+        أضيفي المكافآت التي يمكن للطلاب استبدال نقاطهم بها.
+      </p>
 
-<!-- منطق لوحة المعلمة -->
-<script src="teacher.js"></script>
+      <div class="form-grid">
+        <input
+          type="text"
+          id="rewardName"
+          placeholder="اسم المكافأة">
+
+        <input
+          type="number"
+          id="rewardPrice"
+          placeholder="عدد النقاط"
+          min="1">
+
+        <input
+          type="text"
+          id="rewardIcon"
+          placeholder="رمز المكافأة مثل 🎁"
+          value="🎁">
+      </div>
+
+      <textarea
+        id="rewardDescription"
+        placeholder="وصف المكافأة"
+        rows="3"></textarea>
+
+      <button
+        type="button"
+        class="main-button"
+        id="rewardSaveButton">
+        ➕ إضافة المكافأة
+      </button>
+
+      <button
+        type="button"
+        class="cancel-button"
+        id="cancelRewardButton"
+        style="display:none;">
+        إلغاء التعديل
+      </button>
+
+      <div id="rewardStatus" role="status" aria-live="polite"></div>
+
+      <h3 class="sub-title">🛍️ المكافآت الحالية</h3>
+      <div id="rewardsManagerList">
+        ستظهر المكافآت هنا.
+      </div>
+    </section>
+
+
+    <!-- طلبات المكافآت -->
+    <section class="panel requests-panel">
+      <div class="requests-title">
+        <div>
+          <h2>🔔 طلبات المكافآت</h2>
+          <p class="section-description">
+            تابعي طلبات الطلاب.
+          </p>
+        </div>
+
+        <div id="pendingCount" class="pending-count">0</div>
+      </div>
+
+      <div id="rewardRequestsList">
+        لا توجد طلبات معروضة.
+      </div>
+    </section>
+
+
+    <footer>
+      <p>نجوم صَفّي ⭐</p>
+      <p>إعداد: أ. مآثر محمد الغنبوصية</p>
+    </footer>
+
+  </main>
+
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
+
+  <!-- المشروع القديم -->
+  <script src="firebase.js"></script>
+
+  <!-- المشروع الجديد للمعلمات -->
+  <script src="teacher-firebase.js"></script>
+
+  <!-- منطق لوحة المعلمة -->
+  <script src="teacher.js"></script>
+
+  <!-- وظائف واجهة التسجيل -->
+  <script>
+    function addRegistrationClass() {
+      const container = document.getElementById("registrationClasses");
+      const firstRow = container?.querySelector(".registration-class-row");
+
+      if (!container || !firstRow) return;
+
+      const clone = firstRow.cloneNode(true);
+
+      const select = clone.querySelector(".register-class-select");
+      if (select) select.selectedIndex = 0;
+
+      clone.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+        checkbox.checked = false;
+      });
+
+      container.appendChild(clone);
+    }
+
+    function removeRegistrationClass(button) {
+      const container = document.getElementById("registrationClasses");
+      const rows = container?.querySelectorAll(".registration-class-row");
+
+      if (!container || !rows) return;
+
+      if (rows.length <= 1) {
+        alert("يجب الإبقاء على صف واحد على الأقل.");
+        return;
+      }
+
+      button.closest(".registration-class-row")?.remove();
+    }
+
+    function showTeacherRegistration() {
+      document.getElementById("loginBox").style.display = "none";
+      document.getElementById("teacherRegistrationBox").style.display = "block";
+      document.getElementById("dashboard").style.display = "none";
+    }
+
+    function hideTeacherRegistration() {
+      document.getElementById("teacherRegistrationBox").style.display = "none";
+      document.getElementById("loginBox").style.display = "block";
+
+      const error = document.getElementById("registrationError");
+      if (error) error.textContent = "";
+    }
+
+    document.getElementById("toggleCode")?.addEventListener("click", () => {
+      const input = document.getElementById("teacherCode");
+      const button = document.getElementById("toggleCode");
+
+      if (!input || !button) return;
+
+      const show = input.type === "password";
+      input.type = show ? "text" : "password";
+      button.textContent = show ? "إخفاء الرمز" : "إظهار الرمز";
+    });
+
+    document.getElementById("teacherRegistrationForm")?.addEventListener(
+      "submit",
+      (event) => {
+        const rows = document.querySelectorAll(".registration-class-row");
+
+        for (const row of rows) {
+          const classSelect = row.querySelector(".register-class-select");
+          const checkedSections = row.querySelectorAll(
+            'input[type="checkbox"]:checked'
+          );
+
+          if (!classSelect?.value || checkedSections.length === 0) {
+            event.preventDefault();
+            document.getElementById("registrationError").textContent =
+              "اختاري الصف وشعبة واحدة على الأقل لكل صف.";
+            return;
+          }
+        }
+      }
+    );
+  </script>
 
 </body>
 </html>
