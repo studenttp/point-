@@ -9,6 +9,7 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
     <link
         href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap"
         rel="stylesheet">
@@ -18,34 +19,53 @@
 
 <body>
 
-    <!-- اختيار المعلمة والصف والشعبة -->
+    <!-- تسجيل دخول المعلمة -->
     <div id="loginBox" class="login-box">
         <div class="login-icon">👩🏻‍🏫</div>
 
         <h1>لوحة المعلمة</h1>
         <p>مرحبًا بكِ في منصة نجوم صَفّي ⭐</p>
 
+        <!-- اختيار المعلمة -->
         <div class="login-form-group">
             <label for="teacherSelect">اسم المعلمة</label>
-            <select id="teacherSelect">
+
+            <select id="teacherSelect" autocomplete="username">
                 <option value="">جاري تحميل أسماء المعلمات...</option>
             </select>
         </div>
 
+        <!-- الرمز الخاص بالمعلمة -->
+        <div class="login-form-group">
+            <label for="teacherCode">الرمز الخاص بالمعلمة</label>
+
+            <input
+                type="password"
+                id="teacherCode"
+                placeholder="أدخلي رمز الدخول الخاص بكِ"
+                autocomplete="current-password"
+                required>
+        </div>
+
+        <!-- اختيار الصف -->
         <div class="login-form-group">
             <label for="classSelect">الصف</label>
+
             <select id="classSelect" disabled>
                 <option value="">اختاري المعلمة أولًا</option>
             </select>
         </div>
 
+        <!-- اختيار الشعبة -->
         <div class="login-form-group">
             <label for="sectionSelect">الشعبة</label>
+
             <select id="sectionSelect" disabled>
                 <option value="">اختاري الصف أولًا</option>
             </select>
         </div>
 
+        <!-- زر الدخول -->
         <button
             type="button"
             class="main-button"
@@ -76,7 +96,7 @@
                 class="cancel-button"
                 id="logoutButton"
                 onclick="logout()">
-                تغيير المعلمة / تسجيل الخروج
+                تسجيل الخروج / تغيير المعلمة
             </button>
         </header>
 
@@ -153,7 +173,9 @@
             <div id="studentStatus" role="status"></div>
 
             <h3 class="sub-title">📋 قائمة الطلاب</h3>
-            <div id="studentsList">اختاري المعلمة والصف والشعبة أولًا.</div>
+            <div id="studentsList">
+                اختاري المعلمة والصف والشعبة أولًا.
+            </div>
         </section>
 
         <!-- ملفات الطلاب الموحدة -->
@@ -221,7 +243,9 @@
             <div id="rewardStatus" role="status"></div>
 
             <h3 class="sub-title">🛍️ المكافآت الحالية</h3>
-            <div id="rewardsManagerList">اختاري الشعبة لعرض المكافآت.</div>
+            <div id="rewardsManagerList">
+                اختاري الشعبة لعرض المكافآت.
+            </div>
         </section>
 
         <!-- طلبات المكافآت -->
@@ -242,6 +266,7 @@
             </div>
         </section>
 
+        <!-- تذييل اللوحة -->
         <footer>
             <p>نجوم صَفّي ⭐</p>
             <p>إعداد: أ. مآثر محمد الغنبوصية</p>
