@@ -1,4 +1,3 @@
-
 /* =========================================================
    نجوم صَفّي — teacher.js
    تسجيل المعلمين وإدارة الطلاب والنقاط والمكافآت والطلبات
@@ -9,19 +8,19 @@
 (() => {
   "use strict";
 
-  // منع تشغيل الملف مرتين إذا تم تضمينه بالخطأ أكثر من مرة.
+  // منع تشغيل الملف أكثر من مرة.
   if (window.__najoomTeacherJSLoaded) return;
   window.__najoomTeacherJSLoaded = true;
 
   const $ = (id) => document.getElementById(id);
 
-  // Firebase الخاص بالمعلمين فقط.
   const auth = window.teacherAuth;
   const db = window.teacherDB;
 
   if (!auth || !db) {
     console.error(
-      "نجوم صفي: لم يتم العثور على teacherAuth أو teacherDB. تأكدي من تحميل teacher-firebase.js قبل teacher.js."
+      "نجوم صفي: لم يتم العثور على teacherAuth أو teacherDB. " +
+      "تأكدي من تحميل teacher-firebase.js قبل teacher.js."
     );
     return;
   }
@@ -31,6 +30,7 @@
   let lastInitializedUid = null;
   let isRegistering = false;
   let dashboardListenersBound = false;
+  let dashboardInitializationPromise = null;
 
   let studentsCache = [];
   let rewardsCache = [];
@@ -70,41 +70,27 @@
   }
 
   function showElement(element, visible) {
-    if (element) element.hidden = !visible;
-  }
-
-  function showLoginError(message) {
-    setStatus("loginError", message, true);
-  }
-
-  function clearLoginError() {
-    setStatus("loginError", "");
+    if (element) {
+      element.hidden = !visible;
+      element.style.display = visible ? "" : "none";
+    }
   }
 
   function getErrorMessage(error) {
     const code = error?.code || "";
 
     const messages = {
-      "auth/email-already-in-use":
-        "هذا البريد الإلكتروني مسجل مسبقًا.",
-      "auth/invalid-email":
-        "صيغة البريد الإلكتروني غير صحيحة.",
-      "auth/weak-password":
-        "كلمة المرور ضعيفة. استخدمي كلمة مرور لا تقل عن 6 أحرف.",
-      "auth/invalid-credential":
-        "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
-      "auth/user-not-found":
-        "لا يوجد حساب بهذا البريد الإلكتروني.",
-      "auth/wrong-password":
-        "كلمة المرور غير صحيحة.",
-      "auth/too-many-requests":
-        "تمت محاولات كثيرة. حاولي مرة أخرى لاحقًا.",
-      "auth/network-request-failed":
-        "تعذر الاتصال بالإنترنت. تحققي من الاتصال وحاولي مجددًا.",
-      "permission-denied":
-        "لا توجد صلاحية لتنفيذ العملية. تحققي من قواعد Firestore.",
-      "unavailable":
-        "الخدمة غير متاحة مؤقتًا. حاولي مرة أخرى."
+      "auth/email-already-in-use": "هذا البريد الإلكتروني مسجل مسبقًا.",
+      "auth/invalid-email": "صيغة البريد الإلكتروني غير صحيحة.",
+      "auth/weak-password": "كلمة المرور ضعيفة. استخدمي 6 أحرف على الأقل.",
+      "auth/invalid-credential": "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+      "auth/user-not-found": "لا يوجد حساب بهذا البريد الإلكتروني.",
+      "auth/wrong-password": "كلمة المرور غير صحيحة.",
+      "auth/too-many-requests": "تمت محاولات كثيرة. حاولي مرة أخرى لاحقًا.",
+      "auth/network-request-failed": "تعذر الاتصال بالإنترنت. تحققي من الاتصال.",
+      "permission-denied": "لا توجد صلاحية لتنفيذ العملية. تحققي من قواعد Firestore.",
+      "unavailable": "الخدمة غير متاحة مؤقتًا. حاولي مرة أخرى.",
+      "failed-precondition": "تعذر تنفيذ العملية بسبب إعدادات قاعدة البيانات."
     };
 
     return messages[code] || error?.message || "حدث خطأ غير متوقع.";
@@ -165,13 +151,11 @@
   }
 
   function getSelectedClassFromForm() {
-    const select = $("activeClassSelect");
-    return normalizeString(select?.value || activeClass);
+    return normalizeString($("activeClassSelect")?.value || activeClass);
   }
 
   function getSelectedSectionFromForm() {
-    const select = $("activeSectionSelect");
-    return normalizeString(select?.value || activeSection);
+    return normalizeString($("activeSectionSelect")?.value || activeSection);
   }
 
   function getStudentClass(student) {
@@ -193,35 +177,48 @@
   }
 
   // ---------------------------------------------------------
-  // التنقل بين واجهات الدخول والتسجيل ولوحة التحكم
+  // التنقل بين الواجهات
+  // المعرّفات متوافقة مع teacher.html الحالية
   // ---------------------------------------------------------
 
   function showLoginView() {
-    showElement($("teacherLoginSection"), true);
-    showElement($("teacherRegistrationSection"), false);
-    showElement($("teacherDashboard"), false);
-  }
+    showElement($("loginBox"), true);
+    showElement($("teacherRegistrationBox"), false);
+    showElement($("dashboard"), false);
 
-  function showRegistrationView() {
-    showElement($("teacherLoginSection"), false);
-    showElement($("teacherRegistrationSection"), true);
-    showElement($("teacherDashboard"), false);
     clearLoginError();
   }
 
-  function showDashboardView() {
-    showElement($("teacherLoginSection"), false);
-    showElement($("teacherRegistrationSection"), false);
-    showElement($("teacherDashboard"), true);
+  function showRegistrationView() {
+    showElement($("loginBox"), false);
+    showElement($("teacherRegistrationBox"), true);
+    showElement($("dashboard"), false);
+
+    clearLoginError();
+    setStatus("registrationError", "");
   }
 
-  // دعم الأسماء المستخدمة في أزرار HTML القديمة.
+  function showDashboardView() {
+    showElement($("loginBox"), false);
+    showElement($("teacherRegistrationBox"), false);
+    showElement($("dashboard"), true);
+  }
+
+  // دعم أزرار HTML.
   window.showTeacherRegistration = showRegistrationView;
   window.hideTeacherRegistration = showLoginView;
   window.showRegistration = showRegistrationView;
 
+  function showLoginError(message) {
+    setStatus("loginError", message, true);
+  }
+
+  function clearLoginError() {
+    setStatus("loginError", "");
+  }
+
   // ---------------------------------------------------------
-  // قراءة صفوف الصفوف والشعب من نموذج التسجيل
+  // قراءة الصفوف والشعب من نموذج التسجيل
   // ---------------------------------------------------------
 
   function readRegistrationClasses() {
@@ -274,14 +271,14 @@
     const confirmPassword = $("confirmTeacherPassword")?.value || "";
     const classes = readRegistrationClasses();
 
-    if (!name || !school || !subject || !email || !password) {
-      setStatus("registrationStatus", "يرجى تعبئة جميع البيانات المطلوبة.", true);
+    if (!name || !school || !subject || !email || !password || !confirmPassword) {
+      setStatus("registrationError", "يرجى تعبئة جميع البيانات المطلوبة.", true);
       return;
     }
 
     if (password.length < 6) {
       setStatus(
-        "registrationStatus",
+        "registrationError",
         "يجب ألا تقل كلمة المرور عن 6 أحرف.",
         true
       );
@@ -289,14 +286,27 @@
     }
 
     if (password !== confirmPassword) {
-      setStatus("registrationStatus", "كلمتا المرور غير متطابقتين.", true);
+      setStatus("registrationError", "كلمتا المرور غير متطابقتين.", true);
       return;
     }
 
     if (!classes.length) {
       setStatus(
-        "registrationStatus",
+        "registrationError",
         "يرجى اختيار صف دراسي واحد على الأقل.",
+        true
+      );
+      return;
+    }
+
+    const classWithoutSections = classes.find(
+      (item) => !item.sections || item.sections.length === 0
+    );
+
+    if (classWithoutSections) {
+      setStatus(
+        "registrationError",
+        `يرجى اختيار شعبة واحدة على الأقل للصف ${classWithoutSections.name}.`,
         true
       );
       return;
@@ -304,12 +314,15 @@
 
     isRegistering = true;
 
-    const submitButton = $("teacherRegistrationForm")?.querySelector(
-      'button[type="submit"]'
-    );
+    const form = $("teacherRegistrationForm");
+    const submitButton = form?.querySelector('button[type="submit"]');
+
     if (submitButton) submitButton.disabled = true;
 
-    setStatus("registrationStatus", "جارٍ إنشاء حساب المعلم...");
+    setStatus("registrationError", "جارٍ إنشاء حساب المعلم...");
+
+    let createdUser = null;
+    let profileSaved = false;
 
     try {
       const credential = await auth.createUserWithEmailAndPassword(
@@ -318,10 +331,10 @@
       );
 
       const user = credential.user;
+      createdUser = user;
 
       await user.updateProfile({ displayName: name });
 
-      // يجب أن تتوافق أسماء الحقول مع قواعد Firestore المنشورة.
       const profile = {
         name,
         school,
@@ -334,43 +347,67 @@
 
       try {
         await db.collection("teachers").doc(user.uid).set(profile);
+        profileSaved = true;
       } catch (profileError) {
         console.error("تعذر حفظ ملف المعلم:", profileError);
 
+        currentTeacher = user;
+        teacherProfile = {
+          name,
+          school,
+          subject,
+          email,
+          classes,
+          _missingProfile: true
+        };
+
         setStatus(
-          "registrationStatus",
-          "تم إنشاء حساب الدخول، لكن تعذر حفظ بيانات المعلم. لا تنشئي حسابًا جديدًا؛ سجّلي الدخول بهذا البريد وحاولي إكمال إعداد الملف بعد تصحيح صلاحيات Firestore.",
+          "registrationError",
+          "تم إنشاء حساب الدخول، لكن تعذر حفظ ملف المعلم في Firestore. " +
+          "لا تعيدي التسجيل بالبريد نفسه. تحققي من قواعد Firestore ثم سجّلي الدخول.",
           true
         );
 
         return;
       }
 
-      teacherProfile = {
-        name,
-        school,
-        subject,
-        email,
-        classes
-      };
+      currentTeacher = user;
+      teacherProfile = { name, school, subject, email, classes };
+      lastInitializedUid = null;
 
       setStatus(
-        "registrationStatus",
-        "تم إنشاء الحساب وحفظ بيانات المعلم بنجاح."
+        "registrationError",
+        "تم إنشاء الحساب بنجاح. جارٍ فتح لوحة التحكم..."
       );
 
-      // لا نستدعي initializeDashboard هنا؛ مستمع تسجيل الدخول
-      // هو المسؤول عن تهيئة اللوحة لتجنب التهيئة المكررة.
     } catch (error) {
       console.error("خطأ تسجيل المعلم:", error);
+
       setStatus(
-        "registrationStatus",
+        "registrationError",
         getErrorMessage(error),
         true
       );
+
+      return;
     } finally {
       isRegistering = false;
       if (submitButton) submitButton.disabled = false;
+    }
+
+    // بعد حفظ الملف، افتحي اللوحة مباشرة.
+    // لا نعتمد على توقيت onAuthStateChanged وحده.
+    if (createdUser && profileSaved) {
+      try {
+        await initializeDashboard();
+      } catch (error) {
+        console.error("تعذر فتح لوحة المعلم بعد التسجيل:", error);
+        setStatus(
+          "registrationError",
+          "تم إنشاء الحساب، لكن تعذر فتح لوحة التحكم. سجّلي الدخول بالحساب الجديد.",
+          true
+        );
+      }
     }
   }
 
@@ -396,7 +433,6 @@
 
     try {
       await auth.signInWithEmailAndPassword(email, password);
-      // تتم قراءة ملف المعلم وفتح اللوحة عبر onAuthStateChanged.
     } catch (error) {
       console.error("خطأ تسجيل الدخول:", error);
       showLoginError(getErrorMessage(error));
@@ -415,6 +451,7 @@
 
     try {
       await auth.sendPasswordResetEmail(email);
+
       setStatus(
         "loginError",
         "إذا كان البريد مسجلًا، فستصلك رسالة لإعادة تعيين كلمة المرور."
@@ -428,12 +465,21 @@
   async function logoutTeacher() {
     try {
       await auth.signOut();
+
       currentTeacher = null;
       teacherProfile = null;
       lastInitializedUid = null;
+      dashboardInitializationPromise = null;
+
       studentsCache = [];
       rewardsCache = [];
       requestsCache = [];
+
+      activeClass = "";
+      activeSection = "";
+      editingStudentId = null;
+      editingRewardId = null;
+
       showLoginView();
     } catch (error) {
       console.error("خطأ تسجيل الخروج:", error);
@@ -460,36 +506,24 @@
       return teacherProfile;
     }
 
-    // يسمح باستكمال إنشاء الملف إذا سبق إنشاء حساب الدخول
-    // وفشل حفظ الملف الشخصي.
-    if (user.email) {
-      const fallbackProfile = {
-        name: user.displayName || "",
-        school: "",
-        subject: "",
-        email: user.email,
-        classes: [],
-        active: true,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      };
-
-      return {
-        ...fallbackProfile,
-        _missingProfile: true
-      };
-    }
-
-    throw new Error("لم يتم العثور على ملف المعلم.");
+    return {
+      name: user.displayName || "",
+      school: "",
+      subject: "",
+      email: user.email || "",
+      classes: [],
+      active: true,
+      _missingProfile: true
+    };
   }
 
   async function completeMissingTeacherProfile(profile) {
-    if (!currentTeacher || !profile?._missingProfile) return profile;
+    if (!profile?._missingProfile) return profile;
 
-    // لا يمكن استنتاج المدرسة أو المادة أو الصفوف تلقائيًا.
-    // نعرض اللوحة مع رسالة توضح أن الملف يحتاج إلى إكمال التسجيل.
     setStatus(
       "teacherProfileStatus",
-      "حساب الدخول موجود، لكن ملف المعلم غير مكتمل. سجّلي بيانات المدرسة والمادة والصفوف من نموذج التسجيل أو أصلحي ملف المعلم في Firestore.",
+      "ملف المعلم غير مكتمل. بيانات الدخول موجودة، لكن لم يتم العثور على " +
+      "ملف المعلم في Firestore. تحققي من حفظ الملف وصلاحيات قاعدة البيانات.",
       true
     );
 
@@ -508,44 +542,63 @@
       return;
     }
 
-    lastInitializedUid = currentTeacher.uid;
-
-    try {
-      const profile = await loadTeacherProfile(currentTeacher);
-
-      // قد يكون المستخدم قد سجّل الخروج أثناء تحميل الملف.
-      if (!currentTeacher || auth.currentUser?.uid !== currentTeacher.uid) {
-        return;
-      }
-
-      teacherProfile = await completeMissingTeacherProfile(profile);
-
-      setText(
-        "teacherName",
-        teacherProfile.name || currentTeacher.displayName || "المعلم"
-      );
-      setText("schoolName", teacherProfile.school || "—");
-      setText("subjectName", teacherProfile.subject || "—");
-
-      populateClassSelectors();
-
-      bindDashboardEvents();
-      showDashboardView();
-
-      await refreshDashboardData();
-    } catch (error) {
-      console.error("تعذر تهيئة لوحة المعلم:", error);
-
-      setStatus(
-        "teacherProfileStatus",
-        "تعذر تحميل بيانات المعلم: " + getErrorMessage(error),
-        true
-      );
-
-      // لا نُخرج المستخدم تلقائيًا عند فشل مؤقت في قراءة Firestore.
-      showDashboardView();
+    // منع تشغيل عمليتي تهيئة متزامنتين للحساب نفسه.
+    if (dashboardInitializationPromise) {
+      await dashboardInitializationPromise;
+      return;
     }
+
+    const initializingUid = currentTeacher.uid;
+
+    dashboardInitializationPromise = (async () => {
+      try {
+        const profile = await loadTeacherProfile(currentTeacher);
+
+        if (
+          !currentTeacher ||
+          auth.currentUser?.uid !== initializingUid ||
+          currentTeacher.uid !== initializingUid
+        ) {
+          return;
+        }
+
+        teacherProfile = await completeMissingTeacherProfile(profile);
+
+        setText(
+          "teacherName",
+          teacherProfile.name || currentTeacher.displayName || "المعلم"
+        );
+        setText("schoolName", teacherProfile.school || "—");
+        setText("subjectName", teacherProfile.subject || "—");
+
+        populateClassSelectors();
+        bindDashboardEvents();
+        showDashboardView();
+
+        lastInitializedUid = initializingUid;
+
+        await refreshDashboardData();
+      } catch (error) {
+        console.error("تعذر تهيئة لوحة المعلم:", error);
+
+        setStatus(
+          "teacherProfileStatus",
+          "تعذر تحميل بيانات المعلم: " + getErrorMessage(error),
+          true
+        );
+
+        showDashboardView();
+      } finally {
+        dashboardInitializationPromise = null;
+      }
+    })();
+
+    await dashboardInitializationPromise;
   }
+
+  // ---------------------------------------------------------
+  // الصفوف والشعب في لوحة التحكم
+  // ---------------------------------------------------------
 
   function populateClassSelectors() {
     const classes = getClassesFromProfile(teacherProfile);
@@ -562,10 +615,12 @@
       classSelect.add(new Option("لا توجد صفوف مسجلة", ""));
       activeClass = "";
       activeSection = "";
+
       if (sectionSelect) {
         sectionSelect.innerHTML = "";
         sectionSelect.add(new Option("—", ""));
       }
+
       setText("className", "—");
       setText("selectedClass", "—");
       setText("selectedSection", "—");
@@ -596,22 +651,13 @@
 
     const sections = selected?.sections || [];
 
-    // إذا لم توجد شعب مسجلة، نعرض خيارًا عامًا.
-    if (!sections.length) {
-      sectionSelect.add(new Option("جميع الشعب", ""));
-      activeSection = "";
-    } else {
-      sectionSelect.add(new Option("جميع الشعب", ""));
+    sectionSelect.add(new Option("جميع الشعب", ""));
 
-      sections.forEach((section) => {
-        sectionSelect.add(new Option(section, section));
-      });
+    sections.forEach((section) => {
+      sectionSelect.add(new Option(section, section));
+    });
 
-      activeSection = sections.includes(previousSection)
-        ? previousSection
-        : "";
-    }
-
+    activeSection = sections.includes(previousSection) ? previousSection : "";
     sectionSelect.value = activeSection;
 
     setText("className", activeClass || "—");
@@ -620,7 +666,7 @@
   }
 
   // ---------------------------------------------------------
-  // تحميل البيانات
+  // تحميل بيانات لوحة المعلم
   // ---------------------------------------------------------
 
   async function refreshDashboardData() {
@@ -709,11 +755,7 @@
     }
 
     if (!Number.isFinite(points) || points < 0) {
-      setStatus(
-        "studentStatus",
-        "أدخلي عدد نقاط صحيحًا لا يقل عن صفر.",
-        true
-      );
+      setStatus("studentStatus", "أدخلي عدد نقاط صحيحًا لا يقل عن صفر.", true);
       return;
     }
 
@@ -795,9 +837,7 @@
     const student = studentsCache.find((item) => item.id === studentId);
     if (!student) return;
 
-    if (!confirm(`هل تريدين حذف الطالب "${student.name || ""}"؟`)) {
-      return;
-    }
+    if (!confirm(`هل تريدين حذف الطالب "${student.name || ""}"؟`)) return;
 
     try {
       await studentsCollection().doc(studentId).delete();
@@ -856,20 +896,13 @@
           <p>النقاط: <strong>${toNumber(student.points)}</strong></p>
           <p>الصف: ${escapeHTML(getStudentClass(student) || "—")}</p>
           <p>الشعبة: ${escapeHTML(getStudentSection(student) || "—")}</p>
-          ${student.message
-            ? `<p>${escapeHTML(student.message)}</p>`
-            : ""}
+          ${student.message ? `<p>${escapeHTML(student.message)}</p>` : ""}
         </div>
-
         <div class="student-card-actions">
-          <button type="button" data-action="add-point"
-            data-id="${escapeHTML(student.id)}">+ نقطة</button>
-          <button type="button" data-action="remove-point"
-            data-id="${escapeHTML(student.id)}">− نقطة</button>
-          <button type="button" data-action="edit-student"
-            data-id="${escapeHTML(student.id)}">تعديل</button>
-          <button type="button" data-action="delete-student"
-            data-id="${escapeHTML(student.id)}">حذف</button>
+          <button type="button" data-action="add-point" data-id="${escapeHTML(student.id)}">+ نقطة</button>
+          <button type="button" data-action="remove-point" data-id="${escapeHTML(student.id)}">− نقطة</button>
+          <button type="button" data-action="edit-student" data-id="${escapeHTML(student.id)}">تعديل</button>
+          <button type="button" data-action="delete-student" data-id="${escapeHTML(student.id)}">حذف</button>
         </div>
       </div>
     `).join("");
@@ -959,7 +992,6 @@
       } else {
         rewardData.createdAt =
           firebase.firestore.FieldValue.serverTimestamp();
-
         rewardData.active = true;
 
         await rewardsCollection().add(rewardData);
@@ -1000,9 +1032,7 @@
     const reward = rewardsCache.find((item) => item.id === rewardId);
     if (!reward) return;
 
-    if (!confirm(`هل تريدين حذف المكافأة "${reward.name || ""}"؟`)) {
-      return;
-    }
+    if (!confirm(`هل تريدين حذف المكافأة "${reward.name || ""}"؟`)) return;
 
     try {
       await rewardsCollection().doc(rewardId).delete();
@@ -1029,21 +1059,13 @@
     container.innerHTML = rewardsCache.map((reward) => `
       <div class="reward-manager-card">
         <div>
-          <strong>
-            ${escapeHTML(reward.icon || "🎁")}
-            ${escapeHTML(reward.name || "مكافأة")}
-          </strong>
+          <strong>${escapeHTML(reward.icon || "🎁")} ${escapeHTML(reward.name || "مكافأة")}</strong>
           <p>التكلفة: ${toNumber(reward.price)} نقطة</p>
-          ${reward.description
-            ? `<p>${escapeHTML(reward.description)}</p>`
-            : ""}
+          ${reward.description ? `<p>${escapeHTML(reward.description)}</p>` : ""}
         </div>
-
         <div class="reward-manager-actions">
-          <button type="button" data-action="edit-reward"
-            data-id="${escapeHTML(reward.id)}">تعديل</button>
-          <button type="button" data-action="delete-reward"
-            data-id="${escapeHTML(reward.id)}">حذف</button>
+          <button type="button" data-action="edit-reward" data-id="${escapeHTML(reward.id)}">تعديل</button>
+          <button type="button" data-action="delete-reward" data-id="${escapeHTML(reward.id)}">حذف</button>
         </div>
       </div>
     `).join("");
@@ -1089,8 +1111,7 @@
     container.innerHTML = requestsCache.map((request) => {
       const status = getRequestStatus(request);
       const pendingRequest = isPendingRequest(request);
-      const studentName =
-        request.studentName || request.nameOfStudent || "طالب";
+      const studentName = request.studentName || request.nameOfStudent || "طالب";
       const rewardName = getRequestRewardName(request);
       const price = toNumber(
         request.price ?? request.rewardPrice ?? request.pointsCost,
@@ -1106,13 +1127,10 @@
             <p>الحالة: ${escapeHTML(status)}</p>
             <p>التاريخ: ${escapeHTML(formatDate(request.createdAt))}</p>
           </div>
-
           ${pendingRequest ? `
             <div class="reward-request-actions">
-              <button type="button" data-action="approve-request"
-                data-id="${escapeHTML(request.id)}">قبول الطلب</button>
-              <button type="button" data-action="reject-request"
-                data-id="${escapeHTML(request.id)}">رفض الطلب</button>
+              <button type="button" data-action="approve-request" data-id="${escapeHTML(request.id)}">قبول الطلب</button>
+              <button type="button" data-action="reject-request" data-id="${escapeHTML(request.id)}">رفض الطلب</button>
             </div>
           ` : ""}
         </div>
@@ -1149,12 +1167,13 @@
 
     if (!studentId) {
       alert(
-        "لا يمكن خصم النقاط تلقائيًا لأن الطلب لا يحتوي على معرّف مستند الطالب. تحققي من بنية بيانات الطلب."
+        "لا يمكن خصم النقاط تلقائيًا لأن الطلب لا يحتوي على معرّف مستند الطالب. " +
+        "تحققي من بنية بيانات الطلب."
       );
       return;
     }
 
-    if (cost < 0) {
+    if (!Number.isFinite(cost) || cost <= 0) {
       alert("تكلفة المكافأة غير صحيحة.");
       return;
     }
@@ -1166,10 +1185,8 @@
       const studentRef = studentsCollection().doc(studentId);
 
       await db.runTransaction(async (transaction) => {
-        const [requestSnapshot, studentSnapshot] = await Promise.all([
-          transaction.get(requestRef),
-          transaction.get(studentRef)
-        ]);
+        const requestSnapshot = await transaction.get(requestRef);
+        const studentSnapshot = await transaction.get(studentRef);
 
         if (!requestSnapshot.exists) {
           throw new Error("طلب الاستبدال غير موجود.");
@@ -1185,15 +1202,26 @@
           throw new Error("تمت معالجة هذا الطلب مسبقًا.");
         }
 
+        const latestCost = toNumber(
+          latestRequest.price ??
+          latestRequest.rewardPrice ??
+          latestRequest.pointsCost,
+          0
+        );
+
+        if (!Number.isFinite(latestCost) || latestCost <= 0) {
+          throw new Error("تكلفة المكافأة غير صحيحة.");
+        }
+
         const student = studentSnapshot.data() || {};
         const currentPoints = toNumber(student.points);
 
-        if (currentPoints < cost) {
+        if (currentPoints < latestCost) {
           throw new Error("نقاط الطالب غير كافية لقبول الطلب.");
         }
 
         transaction.update(studentRef, {
-          points: currentPoints - cost,
+          points: currentPoints - latestCost,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
@@ -1212,6 +1240,9 @@
   }
 
   async function rejectRewardRequest(requestId) {
+    const request = requestsCache.find((item) => item.id === requestId);
+    if (!request || !isPendingRequest(request)) return;
+
     if (!confirm("هل تريدين رفض طلب استبدال المكافأة؟")) return;
 
     await updateRequestStatus(requestId, "rejected");
@@ -1236,6 +1267,7 @@
     $("activeClassSelect")?.addEventListener("change", () => {
       activeClass = getSelectedClassFromForm();
       activeSection = "";
+
       populateSectionSelector();
       renderStudents();
       renderUnifiedStudents();
@@ -1298,19 +1330,12 @@
   }
 
   // ---------------------------------------------------------
-  // ربط نماذج تسجيل الدخول والتسجيل
+  // أحداث تسجيل الدخول والتسجيل
   // ---------------------------------------------------------
 
   function bindAuthenticationEvents() {
     $("teacherLoginForm")?.addEventListener("submit", loginTeacher);
     $("teacherRegistrationForm")?.addEventListener("submit", registerTeacher);
-
-    $("teacherLoginButton")?.addEventListener("click", (event) => {
-      // إذا كان الزر من النوع submit، سيتولى حدث النموذج عملية الدخول.
-      if ($("teacherLoginButton")?.type !== "submit") {
-        loginTeacher(event);
-      }
-    });
 
     $("resetPasswordButton")?.addEventListener(
       "click",
@@ -1322,7 +1347,13 @@
       showRegistrationView
     );
 
-    // دعم عناصر HTML القديمة إن كانت موجودة.
+    // لا نضيف حدثًا ثانيًا لزر الدخول إذا كان زر submit.
+    $("teacherLoginButton")?.addEventListener("click", (event) => {
+      if ($("teacherLoginButton")?.type !== "submit") {
+        loginTeacher(event);
+      }
+    });
+
     $("teacherCode")?.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
@@ -1340,10 +1371,14 @@
       currentTeacher = null;
       teacherProfile = null;
       lastInitializedUid = null;
+      dashboardInitializationPromise = null;
 
       studentsCache = [];
       rewardsCache = [];
       requestsCache = [];
+
+      activeClass = "";
+      activeSection = "";
 
       showLoginView();
       return;
@@ -1351,7 +1386,7 @@
 
     currentTeacher = user;
 
-    // لا تُهيّأ اللوحة إذا كان التسجيل الجاري لم يحفظ ملف المعلم بعد.
+    // أثناء التسجيل، تُكمل registerTeacher حفظ الملف ثم تفتح اللوحة.
     if (isRegistering) return;
 
     await initializeDashboard();
