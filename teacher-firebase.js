@@ -14,7 +14,7 @@ if (!firebase.apps.some(app => app.name === "teacherApp")) {
   firebase.initializeApp(teacherFirebaseConfig, "teacherApp");
 }
 
-const teacherApp = firebase.app("teacherApp");
-const teacherAuth = teacherApp.auth();
-const teacherDB = teacherApp.firestore();
-}
+// ربط خدمات Firebase بالتطبيق الجديد
+window.teacherApp = firebase.app("teacherApp");
+window.teacherAuth = window.teacherApp.auth();
+window.teacherDB = window.teacherApp.firestore();
