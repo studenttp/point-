@@ -1068,3 +1068,25 @@ window.deleteReward = deleteReward;
 
 window.loadRewardRequests = loadRewardRequests;
 window.updateRewardRequest = updateRewardRequest;
+
+
+/* إظهار نموذج تسجيل معلمة جديدة */
+window.showTeacherRegistration = function () {
+    const loginBox = document.getElementById("loginBox");
+    const registrationBox = document.getElementById("teacherRegistrationBox");
+
+    if (!registrationBox) {
+        alert("لم يتم العثور على نموذج تسجيل المعلمة. تأكدي من وجود العنصر teacherRegistrationBox في ملف teacher.html.");
+        return;
+    }
+
+    if (loginBox) {
+        loginBox.style.display = "none";
+    }
+
+    registrationBox.style.display = "block";
+    registrationBox.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
+};
