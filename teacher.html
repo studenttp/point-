@@ -19,36 +19,49 @@
 
 <body>
 
-  <!-- تسجيل دخول المعلمة بالرمز فقط -->
+  <!-- تسجيل دخول المعلمة -->
   <div id="loginBox" class="login-box">
     <div class="login-icon">👩🏻‍🏫</div>
 
     <h1>لوحة المعلمة</h1>
     <p>مرحبًا بكِ في منصة نجوم صَفّي ⭐</p>
 
-    <div class="login-form-group">
-      <label for="teacherCode">رمز الدخول الخاص بالمعلمة</label>
+    <form id="teacherLoginForm">
 
-      <input
-        type="password"
-        id="teacherCode"
-        placeholder="أدخلي رمز الدخول"
-        autocomplete="current-password"
-        required>
+      <div class="login-form-group">
+        <label for="teacherEmail">البريد الإلكتروني</label>
+        <input
+          type="email"
+          id="teacherEmail"
+          placeholder="أدخلي بريدك الإلكتروني"
+          autocomplete="username"
+          required>
+      </div>
+
+      <div class="login-form-group">
+        <label for="teacherPassword">كلمة المرور</label>
+        <input
+          type="password"
+          id="teacherPassword"
+          placeholder="أدخلي كلمة المرور"
+          autocomplete="current-password"
+          required>
+      </div>
 
       <button
-        type="button"
-        id="toggleCode"
-        class="cancel-button">
-        إظهار الرمز
+        type="submit"
+        class="main-button"
+        id="teacherLoginButton">
+        دخول لوحة المعلمة
       </button>
-    </div>
+
+    </form>
 
     <button
       type="button"
-      class="main-button"
-      id="teacherLoginButton">
-      دخول لوحة المعلمة
+      class="cancel-button"
+      id="resetPasswordButton">
+      نسيت كلمة المرور؟
     </button>
 
     <button
@@ -103,27 +116,39 @@
       </div>
 
       <div class="login-form-group">
-        <label for="registerTeacherCode">إنشاء رمز الدخول</label>
+        <label for="registerTeacherEmail">البريد الإلكتروني</label>
         <input
-          type="password"
-          id="registerTeacherCode"
-          autocomplete="new-password"
-          minlength="8"
-          placeholder="8 أحرف أو أرقام على الأقل"
+          type="email"
+          id="registerTeacherEmail"
+          placeholder="أدخلي بريدك الإلكتروني"
+          autocomplete="email"
           required>
       </div>
 
       <div class="login-form-group">
-        <label for="confirmTeacherCode">تأكيد رمز الدخول</label>
+        <label for="registerTeacherPassword">إنشاء كلمة المرور</label>
         <input
           type="password"
-          id="confirmTeacherCode"
-          autocomplete="new-password"
+          id="registerTeacherPassword"
           minlength="8"
+          autocomplete="new-password"
+          placeholder="8 أحرف على الأقل"
+          required>
+      </div>
+
+      <div class="login-form-group">
+        <label for="confirmTeacherPassword">تأكيد كلمة المرور</label>
+        <input
+          type="password"
+          id="confirmTeacherPassword"
+          minlength="8"
+          autocomplete="new-password"
+          placeholder="أعيدي كتابة كلمة المرور"
           required>
       </div>
 
       <h3>📚 الصفوف والشعب التي تدرّسينها</h3>
+
       <p class="section-description">
         اختاري الصفوف، ثم حددي الشعب التابعة لكل صف.
       </p>
@@ -223,14 +248,16 @@
     </header>
 
 
-    <!-- اختيار الصف والشعبة بعد الدخول -->
+    <!-- اختيار الصف والشعبة -->
     <section class="panel">
       <h2>🏫 الصف والشعبة</h2>
+
       <p class="section-description">
         اختاري الصف والشعبة لإدارة الطلاب.
       </p>
 
       <div class="form-grid">
+
         <div class="login-form-group">
           <label for="activeClassSelect">الصف</label>
           <select id="activeClassSelect"></select>
@@ -240,6 +267,7 @@
           <label for="activeSectionSelect">الشعبة</label>
           <select id="activeSectionSelect"></select>
         </div>
+
       </div>
 
       <div class="form-grid">
@@ -261,11 +289,13 @@
     <!-- إدارة الطلاب -->
     <section class="panel">
       <h2>👩🏻‍🎓 إدارة الطلاب</h2>
+
       <p class="section-description">
         أضيفي الطلاب أو حدّثي بياناتهم.
       </p>
 
       <div class="form-grid">
+
         <input
           type="text"
           id="studentName"
@@ -282,6 +312,7 @@
           placeholder="النقاط الأولية"
           min="0"
           value="0">
+
       </div>
 
       <textarea
@@ -307,6 +338,7 @@
       <div id="studentStatus" role="status" aria-live="polite"></div>
 
       <h3 class="sub-title">📋 قائمة الطلاب</h3>
+
       <div id="studentsList">
         اختاري الصف والشعبة لعرض الطلاب.
       </div>
@@ -316,6 +348,7 @@
     <!-- ملفات الطلاب الموحدة -->
     <section class="panel">
       <h2>👤 ملفات الطلاب الموحدة</h2>
+
       <p class="section-description">
         هذا القسم مخصص للربط الموحد بين المدارس والمواد.
       </p>
@@ -329,11 +362,13 @@
     <!-- إدارة المكافآت -->
     <section class="panel" id="rewardsManager">
       <h2>🎁 إدارة المكافآت</h2>
+
       <p class="section-description">
         أضيفي المكافآت التي يمكن للطلاب استبدال نقاطهم بها.
       </p>
 
       <div class="form-grid">
+
         <input
           type="text"
           id="rewardName"
@@ -350,6 +385,7 @@
           id="rewardIcon"
           placeholder="رمز المكافأة مثل 🎁"
           value="🎁">
+
       </div>
 
       <textarea
@@ -375,6 +411,7 @@
       <div id="rewardStatus" role="status" aria-live="polite"></div>
 
       <h3 class="sub-title">🛍️ المكافآت الحالية</h3>
+
       <div id="rewardsManagerList">
         ستظهر المكافآت هنا.
       </div>
@@ -383,9 +420,11 @@
 
     <!-- طلبات المكافآت -->
     <section class="panel requests-panel">
+
       <div class="requests-title">
         <div>
           <h2>🔔 طلبات المكافآت</h2>
+
           <p class="section-description">
             تابعي طلبات الطلاب.
           </p>
@@ -397,6 +436,7 @@
       <div id="rewardRequestsList">
         لا توجد طلبات معروضة.
       </div>
+
     </section>
 
 
@@ -412,16 +452,16 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 
-  <!-- المشروع القديم -->
+  <!-- المشروع القديم: لا تعدّلي firebase.js -->
   <script src="firebase.js"></script>
 
-  <!-- المشروع الجديد للمعلمات -->
+  <!-- مشروع المعلمات الجديد -->
   <script src="teacher-firebase.js"></script>
 
   <!-- منطق لوحة المعلمة -->
   <script src="teacher.js"></script>
+
 
   <!-- وظائف واجهة التسجيل -->
   <script>
@@ -461,6 +501,9 @@
       document.getElementById("loginBox").style.display = "none";
       document.getElementById("teacherRegistrationBox").style.display = "block";
       document.getElementById("dashboard").style.display = "none";
+
+      const error = document.getElementById("registrationError");
+      if (error) error.textContent = "";
     }
 
     function hideTeacherRegistration() {
@@ -471,17 +514,7 @@
       if (error) error.textContent = "";
     }
 
-    document.getElementById("toggleCode")?.addEventListener("click", () => {
-      const input = document.getElementById("teacherCode");
-      const button = document.getElementById("toggleCode");
-
-      if (!input || !button) return;
-
-      const show = input.type === "password";
-      input.type = show ? "text" : "password";
-      button.textContent = show ? "إخفاء الرمز" : "إظهار الرمز";
-    });
-
+    // التحقق من الصفوف والشعب قبل إرسال نموذج التسجيل
     document.getElementById("teacherRegistrationForm")?.addEventListener(
       "submit",
       (event) => {
@@ -495,8 +528,10 @@
 
           if (!classSelect?.value || checkedSections.length === 0) {
             event.preventDefault();
+
             document.getElementById("registrationError").textContent =
               "اختاري الصف وشعبة واحدة على الأقل لكل صف.";
+
             return;
           }
         }
