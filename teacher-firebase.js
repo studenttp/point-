@@ -1,4 +1,6 @@
+"use strict";
 
+// إعدادات مشروع Firebase الخاص بلوحة المعلمات فقط
 const teacherFirebaseConfig = {
   apiKey: "AIzaSyBgH8E76u8boytcS2ztiNJQRl5-WqPwu5c",
   authDomain: "read-d879d.firebaseapp.com",
@@ -9,12 +11,12 @@ const teacherFirebaseConfig = {
   measurementId: "G-GCKJN95NGG"
 };
 
-// إنشاء تطبيق مستقل للوحة المعلمة
-if (!firebase.apps.some(app => app.name === "teacherApp")) {
+// إنشاء تطبيق مستقل للمعلمات، ومنع تكرار تهيئته
+if (!firebase.apps.some((app) => app.name === "teacherApp")) {
   firebase.initializeApp(teacherFirebaseConfig, "teacherApp");
 }
 
-// ربط خدمات Firebase بالتطبيق الجديد
+// إتاحة خدمات المشروع الجديد للملف teacher.js
 window.teacherApp = firebase.app("teacherApp");
 window.teacherAuth = window.teacherApp.auth();
 window.teacherDB = window.teacherApp.firestore();
