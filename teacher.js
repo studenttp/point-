@@ -19,8 +19,8 @@ if (!window.firebase || !firebase.apps || !firebase.apps.length) {
 }
 
 function initializeTeacherPanel() {
-  const db = firebase.firestore();
-  const auth = firebase.auth();
+  const db = window.teacherDB;
+  const auth = window.teacherAuth;
 
   let currentTeacher = null;
   let studentsCache = [];
