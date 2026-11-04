@@ -1,20 +1,26 @@
 
 /* ==========================================
    نجوم صَفّي | لوحة المعلمة
-   تصميم عربي RTL متجاوب
+   تحسين التصميم مع الحفاظ على الوظائف
+   RTL | Responsive | Arabic UI
    ========================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap');
 
 :root {
+    color-scheme: light;
+
     --primary: #2563a6;
     --primary-dark: #194a80;
     --primary-light: #eaf3ff;
+    --primary-soft: #f2f7ff;
     --secondary: #5b8fc9;
 
     --background: #f4f7fc;
     --surface: #ffffff;
+    --surface-soft: #f8faff;
     --border: #e1e8f1;
+    --border-strong: #cbd9ea;
 
     --text: #26364b;
     --muted: #738198;
@@ -28,27 +34,47 @@
     --danger: #c43d4b;
     --danger-bg: #fff0f1;
 
-    --radius: 16px;
+    --radius-sm: 10px;
+    --radius-md: 14px;
+    --radius-lg: 20px;
+
+    --shadow-sm: 0 2px 8px rgba(34, 72, 120, 0.045);
     --shadow: 0 5px 22px rgba(34, 72, 120, 0.07);
+    --shadow-hover: 0 9px 26px rgba(34, 72, 120, 0.11);
+
+    --focus-ring: 0 0 0 3px rgba(91, 143, 201, 0.18);
 }
 
-/* الإعدادات العامة */
+/* ==========================================
+   الإعدادات العامة
+   ========================================== */
 
 * {
     box-sizing: border-box;
 }
 
 html {
+    direction: rtl;
     scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
 }
 
 body {
+    min-height: 100vh;
     margin: 0;
     direction: rtl;
     font-family: 'Cairo', sans-serif;
-    background: var(--background);
-    color: var(--text);
+    font-size: 15px;
     line-height: 1.8;
+    color: var(--text);
+    background:
+        radial-gradient(
+            ellipse at top right,
+            rgba(219, 234, 254, 0.35),
+            transparent 36%
+        ),
+        var(--background);
+    -webkit-font-smoothing: antialiased;
 }
 
 button,
@@ -60,61 +86,109 @@ textarea {
 
 button {
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
     transition:
-        background 0.2s ease,
-        transform 0.2s ease,
-        box-shadow 0.2s ease;
+        background-color 0.2s ease,
+        color 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
 }
 
 button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
     transform: none;
+    box-shadow: none;
+}
+
+button:focus-visible,
+a:focus-visible {
+    outline: 3px solid rgba(91, 143, 201, 0.55);
+    outline-offset: 3px;
 }
 
 input,
 select,
 textarea {
+    display: block;
     width: 100%;
     min-width: 0;
-    padding: 11px 14px;
+    min-height: 45px;
+    padding: 10px 13px;
     color: var(--text);
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
     outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        background-color 0.2s ease;
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+    border-color: #a9bfd9;
 }
 
 input:focus,
 select:focus,
 textarea:focus {
     border-color: var(--secondary);
-    box-shadow: 0 0 0 3px rgba(91, 143, 201, 0.13);
+    box-shadow: var(--focus-ring);
 }
 
 input::placeholder,
 textarea::placeholder {
-    color: #a0aabc;
+    color: #9aa7b8;
+    opacity: 1;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+    color: var(--muted);
+    background: #f1f4f8;
+    cursor: not-allowed;
 }
 
 textarea {
-    min-height: 90px;
+    min-height: 95px;
     resize: vertical;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+    display: inline-block;
+    width: 18px;
+    min-width: 18px;
+    min-height: 18px;
+    height: 18px;
+    margin: 0 0 0 7px;
+    padding: 0;
+    accent-color: var(--primary);
+    vertical-align: middle;
+    cursor: pointer;
 }
 
 label {
     display: block;
     margin-bottom: 6px;
-    font-weight: 700;
     color: var(--text);
+    font-size: 0.92rem;
+    font-weight: 700;
 }
 
 img {
     max-width: 100%;
+    height: auto;
 }
 
-/* عناوين الأقسام */
+[hidden] {
+    display: none !important;
+}
 
 h1,
 h2,
@@ -127,34 +201,46 @@ h1,
 h2,
 h3 {
     line-height: 1.5;
+    overflow-wrap: anywhere;
 }
 
 h1 {
-    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-size: clamp(1.45rem, 2.8vw, 2rem);
     font-weight: 800;
 }
 
 h2 {
-    font-size: 1.3rem;
+    font-size: clamp(1.1rem, 2vw, 1.35rem);
     font-weight: 800;
 }
 
 h3 {
-    font-size: 1.05rem;
-    font-weight: 700;
+    font-size: 1.02rem;
+    font-weight: 800;
 }
 
-/* صناديق تسجيل الدخول والتسجيل */
+p {
+    overflow-wrap: anywhere;
+}
+
+::selection {
+    color: var(--primary-dark);
+    background: #d9eaff;
+}
+
+/* ==========================================
+   تسجيل الدخول والتسجيل
+   ========================================== */
 
 #loginBox,
 #teacherRegistrationBox {
-    width: min(100% - 32px, 460px);
-    margin: 6vh auto;
-    padding: clamp(22px, 5vw, 36px);
+    width: min(460px, calc(100% - 32px));
+    margin: clamp(24px, 7vh, 70px) auto;
+    padding: clamp(22px, 4vw, 36px);
     background: var(--surface);
-    border: 1px solid var(--border);
+    border: 1px solid rgba(203, 217, 234, 0.85);
     border-radius: 24px;
-    box-shadow: var(--shadow);
+    box-shadow: 0 14px 42px rgba(34, 72, 120, 0.09);
 }
 
 #loginBox h1,
@@ -165,37 +251,129 @@ h3 {
     text-align: center;
 }
 
+#loginBox h1,
+#teacherRegistrationBox h1 {
+    margin-bottom: 8px;
+}
+
+#loginBox > p,
+#teacherRegistrationBox > p {
+    color: var(--muted);
+    text-align: center;
+}
+
 #teacherLoginForm,
 #teacherRegistrationForm {
     display: grid;
-    gap: 15px;
+    gap: 16px;
+}
+
+.login-form-group {
+    min-width: 0;
+}
+
+.login-form-group label {
+    margin-bottom: 7px;
 }
 
 #loginError,
 #registrationError {
+    min-height: 0;
+    margin: 0;
     color: var(--danger);
     font-size: 0.9rem;
-    font-weight: 600;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+#loginError:not(:empty),
+#registrationError:not(:empty) {
+    padding: 10px 12px;
+    background: var(--danger-bg);
+    border-radius: 9px;
 }
 
 #loginBox button,
 #teacherRegistrationBox button {
+    max-width: 100%;
+}
+
+#teacherLoginButton,
+#registerTeacherButton {
+    width: 100%;
+    min-height: 47px;
+    margin-top: 3px;
+}
+
+#resetPasswordButton,
+#showRegisterButton,
+#backToLoginButton {
+    min-height: 42px;
+}
+
+#showRegisterButton,
+#backToLoginButton {
     width: 100%;
 }
 
-/* الأزرار */
+#teacherRegistrationBox .registration-class-row {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+    padding: 15px;
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    border-radius: 13px;
+}
+
+.registration-sections,
+.registration-class-row .registration-sections {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 9px 14px;
+    min-width: 0;
+}
+
+.registration-sections label {
+    display: inline-flex;
+    align-items: center;
+    margin: 0;
+    font-weight: 600;
+}
+
+#teacherRegistrationBox .remove-class-button {
+    color: var(--danger);
+    background: var(--danger-bg);
+    border: 1px solid #f4d0d5;
+}
+
+#teacherRegistrationBox .remove-class-button:hover {
+    background: #ffe1e4;
+}
+
+/* ==========================================
+   الأزرار
+   ========================================== */
 
 .main-button,
 #teacherLoginButton,
 #registerTeacherButton,
 #studentSaveButton,
 #rewardSaveButton {
-    padding: 11px 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 43px;
+    padding: 10px 18px;
     color: #fff;
     background: var(--primary);
-    border: 0;
-    border-radius: 10px;
-    font-weight: 700;
+    border: 1px solid var(--primary);
+    border-radius: var(--radius-sm);
+    font-weight: 800;
+    text-align: center;
+    text-decoration: none;
 }
 
 .main-button:hover,
@@ -203,34 +381,52 @@ h3 {
 #registerTeacherButton:hover,
 #studentSaveButton:hover,
 #rewardSaveButton:hover {
+    color: #fff;
     background: var(--primary-dark);
+    border-color: var(--primary-dark);
     box-shadow: 0 4px 12px rgba(37, 99, 166, 0.18);
 }
 
+.main-button:active,
+.edit-button:active,
+.delete-button:active {
+    transform: translateY(1px);
+}
+
+.edit-button,
+.delete-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 37px;
+    padding: 7px 12px;
+    border-radius: 9px;
+    font-size: 0.88rem;
+    font-weight: 800;
+    text-align: center;
+}
+
 .edit-button {
-    padding: 7px 13px;
     color: var(--primary-dark);
     background: var(--primary-light);
     border: 1px solid #d5e6fa;
-    border-radius: 9px;
-    font-weight: 700;
 }
 
 .edit-button:hover {
     background: #dceaff;
+    border-color: #b8d3f2;
 }
 
 .delete-button {
-    padding: 7px 13px;
     color: var(--danger);
     background: var(--danger-bg);
-    border: 1px solid #f8d5d9;
-    border-radius: 9px;
-    font-weight: 700;
+    border: 1px solid #f5d4d8;
 }
 
 .delete-button:hover {
     background: #ffe1e4;
+    border-color: #efb8bf;
 }
 
 #cancelStudentButton,
@@ -241,16 +437,27 @@ h3 {
     padding: 9px 14px;
     color: var(--primary-dark);
     background: #fff;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
     border-radius: 9px;
     font-weight: 700;
 }
 
-/* لوحة المعلمة */
+#cancelStudentButton:hover,
+#cancelRewardButton:hover,
+#resetPasswordButton:hover,
+#showRegisterButton:hover,
+#backToLoginButton:hover {
+    background: var(--primary-light);
+    border-color: #b8d3f2;
+}
+
+/* ==========================================
+   لوحة المعلمة والرأس
+   ========================================== */
 
 #dashboard {
-    width: min(100% - 32px, 1400px);
-    margin: 24px auto;
+    width: min(1440px, calc(100% - 40px));
+    margin: 26px auto;
 }
 
 #dashboard > header,
@@ -259,14 +466,15 @@ h3 {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 18px;
     flex-wrap: wrap;
-    margin-bottom: 24px;
-    padding: 24px;
+    gap: 18px;
+    margin-bottom: 23px;
+    padding: clamp(20px, 3vw, 30px);
     color: #fff;
-    background: linear-gradient(120deg, #194a80, #347cbb);
-    border-radius: 20px;
-    box-shadow: var(--shadow);
+    background: linear-gradient(125deg, #194a80 0%, #2563a6 60%, #4789c4 100%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 10px 28px rgba(25, 74, 128, 0.16);
 }
 
 #dashboard > header h1,
@@ -279,80 +487,141 @@ h3 {
     color: #fff;
 }
 
+#dashboard > header p,
+.dashboard-header p,
+.page-header p {
+    margin-bottom: 0;
+}
+
+.teacher-info {
+    min-width: 0;
+    flex: 1 1 240px;
+}
+
 #teacherName,
 #schoolName {
     overflow-wrap: anywhere;
 }
 
 #schoolName {
-    opacity: 0.88;
+    color: rgba(255, 255, 255, 0.88);
 }
 
 #logoutButton {
-    padding: 9px 16px;
+    flex: 0 0 auto;
+    min-height: 42px;
+    padding: 9px 17px;
     color: #fff;
-    background: rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.13);
     border: 1px solid rgba(255, 255, 255, 0.4);
     border-radius: 10px;
-    font-weight: 700;
+    font-weight: 800;
 }
 
 #logoutButton:hover {
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.24);
 }
 
-/* البطاقات والأقسام */
+/* ==========================================
+   البطاقات والأقسام
+   ========================================== */
 
 .panel,
 .section-card,
 .dashboard-card {
     min-width: 0;
     margin-bottom: 22px;
-    padding: clamp(18px, 3vw, 26px);
+    padding: clamp(18px, 2.5vw, 27px);
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
 }
 
 .panel h2,
 .section-card h2,
 .dashboard-card h2 {
-    padding-bottom: 12px;
-    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-bottom: 13px;
+    margin-bottom: 20px;
     color: var(--primary-dark);
     border-bottom: 1px solid var(--border);
+}
+
+.panel h3,
+.section-card h3,
+.dashboard-card h3 {
+    color: var(--primary-dark);
 }
 
 #dashboard section {
     min-width: 0;
 }
 
-/* بيانات الصف والشعبة */
+.sub-title {
+    margin: 20px 0 13px;
+    color: var(--primary-dark);
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.section-description {
+    margin: -7px 0 18px;
+    color: var(--muted);
+    font-size: 0.91rem;
+    line-height: 1.9;
+}
+
+/* ==========================================
+   اختيار الصف والشعبة
+   ========================================== */
+
+#activeClassSelect,
+#activeSectionSelect {
+    max-width: 100%;
+}
 
 #selectedClass,
 #selectedSection {
-    display: inline-block;
-    margin: 4px;
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    margin: 4px 3px;
     padding: 5px 12px;
     color: var(--primary-dark);
     background: var(--primary-light);
-    border-radius: 20px;
-    font-weight: 700;
+    border: 1px solid #d8e8fb;
+    border-radius: 999px;
+    font-size: 0.88rem;
+    font-weight: 800;
+    overflow-wrap: anywhere;
 }
 
 #className,
 #subjectName {
-    margin-bottom: 12px;
+    margin-bottom: 10px;
 }
 
-/* النماذج */
+/* ==========================================
+   نماذج الطالبات والمكافآت
+   ========================================== */
 
 #studentForm,
-#rewardForm {
+#rewardForm,
+.form-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 15px;
+    min-width: 0;
+}
+
+#studentForm > *,
+#rewardForm > *,
+.form-grid > * {
+    min-width: 0;
 }
 
 #studentForm .full-width,
@@ -362,83 +631,174 @@ h3 {
     grid-column: 1 / -1;
 }
 
+#studentForm label,
+#rewardForm label {
+    margin-bottom: 6px;
+}
+
 #studentSaveButton,
 #cancelStudentButton,
 #rewardSaveButton,
 #cancelRewardButton {
     align-self: center;
+    justify-self: start;
 }
 
 #studentStatus,
 #rewardStatus {
-    min-height: 24px;
-    margin-top: 10px;
+    min-height: 0;
+    margin: 12px 0 0;
     font-size: 0.9rem;
-    font-weight: 700;
+    font-weight: 800;
+    overflow-wrap: anywhere;
 }
 
-/* قوائم الطالبات والمكافآت والطلبات */
+#studentStatus:not(:empty),
+#rewardStatus:not(:empty) {
+    padding: 9px 12px;
+    border-radius: 9px;
+}
+
+#studentStatus[data-type="success"],
+#rewardStatus[data-type="success"] {
+    color: var(--success);
+    background: var(--success-bg);
+}
+
+#studentStatus:not([data-type="success"]):not(:empty),
+#rewardStatus:not([data-type="success"]):not(:empty) {
+    color: var(--danger);
+    background: var(--danger-bg);
+}
+
+/* ==========================================
+   قوائم البطاقات
+   ========================================== */
 
 #studentsList,
 #rewardsManagerList,
 #rewardRequestsList,
 #unifiedStudentsList {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 15px;
+    align-items: stretch;
     min-width: 0;
 }
 
 .student-card,
+.reward-card,
 .reward-manager-card,
-.request-card {
+.request-card,
+#unifiedStudentsList > * {
     min-width: 0;
-    padding: 18px;
+    padding: 17px;
+    color: var(--text);
     background: #fff;
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: var(--radius-md);
     overflow-wrap: anywhere;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 7px rgba(34, 72, 120, 0.025);
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
 }
 
 .student-card:hover,
+.reward-card:hover,
 .reward-manager-card:hover,
-.request-card:hover {
+.request-card:hover,
+#unifiedStudentsList > *:hover {
     border-color: #bfd6f0;
-    box-shadow: 0 5px 16px rgba(34, 72, 120, 0.07);
+    box-shadow: var(--shadow);
 }
 
 .student-card h3,
+.reward-card h3,
 .reward-manager-card h3,
 .request-card h3 {
+    margin-bottom: 10px;
     color: var(--primary-dark);
-    margin-bottom: 12px;
+    overflow-wrap: anywhere;
 }
 
 .student-card p,
+.reward-card p,
 .reward-manager-card p,
 .request-card p {
     margin-bottom: 8px;
     color: var(--muted);
+    font-size: 0.92rem;
+    line-height: 1.85;
     overflow-wrap: anywhere;
 }
 
-.card-actions {
+.student-card p:last-child,
+.reward-card p:last-child,
+.reward-manager-card p:last-child,
+.request-card p:last-child {
+    margin-bottom: 0;
+}
+
+/* ==========================================
+   أزرار الإجراءات داخل البطاقات
+   ========================================== */
+
+.card-actions,
+.student-actions,
+.reward-actions,
+.request-actions {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: 8px;
-    margin-top: 16px;
+    min-width: 0;
+    margin-top: 15px;
     padding-top: 12px;
     border-top: 1px solid var(--border);
 }
 
-.card-actions button {
-    flex: 1 1 auto;
+.card-actions button,
+.student-actions button,
+.reward-actions button,
+.request-actions button {
+    flex: 0 1 auto;
+    max-width: 100%;
 }
 
-/* عدد الطلبات المعلقة */
+.student-actions button,
+.reward-actions button,
+.request-actions button {
+    min-height: 36px;
+    padding: 7px 11px;
+    border-radius: 9px;
+    font-size: 0.85rem;
+    font-weight: 800;
+}
 
-#pendingCount {
+.student-actions .edit-button,
+.reward-actions .edit-button,
+.request-actions .edit-button {
+    color: var(--primary-dark);
+    background: var(--primary-light);
+    border: 1px solid #d5e6fa;
+}
+
+.student-actions .delete-button,
+.reward-actions .delete-button,
+.request-actions .delete-button {
+    color: var(--danger);
+    background: var(--danger-bg);
+    border: 1px solid #f5d4d8;
+}
+
+/* ==========================================
+   الطلبات المعلقة
+   ========================================== */
+
+#pendingCount,
+.pending-count {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -447,17 +807,45 @@ h3 {
     padding: 3px 9px;
     color: #8b5700;
     background: var(--warning-bg);
-    border-radius: 20px;
+    border: 1px solid #f4e4b9;
+    border-radius: 999px;
+    font-size: 0.88rem;
     font-weight: 800;
+    line-height: 1.4;
 }
 
-/* رسائل الحالات */
+.requests-panel {
+    border-color: #e4e8f0;
+}
+
+.requests-title {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 9px;
+}
+
+/* ==========================================
+   الحالات الفارغة والرسائل
+   ========================================== */
 
 .empty-state,
 .muted-text {
+    grid-column: 1 / -1;
+    padding: 22px 14px;
     color: var(--muted);
+    background: var(--surface-soft);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-md);
     text-align: center;
-    padding: 20px 12px;
+}
+
+.success-message,
+.error-message {
+    padding: 10px 13px;
+    border-radius: 9px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
 }
 
 .success-message {
@@ -470,31 +858,87 @@ h3 {
     background: var(--danger-bg);
 }
 
-/* الشاشات المتوسطة */
+/* ==========================================
+   التذييل
+   ========================================== */
 
-@media (max-width: 900px) {
+footer {
+    padding: 20px 16px;
+    color: var(--muted);
+    text-align: center;
+    font-size: 0.88rem;
+}
+
+footer p {
+    margin-bottom: 0;
+}
+
+/* ==========================================
+   الأجهزة اللوحية والشاشات المتوسطة
+   ========================================== */
+
+@media (max-width: 1100px) {
     #dashboard {
-        width: min(100% - 24px, 760px);
-        margin: 16px auto;
-    }
-
-    #dashboard > header,
-    .dashboard-header,
-    .page-header {
-        padding: 20px;
+        width: calc(100% - 32px);
+        margin: 20px auto;
     }
 
     #studentsList,
     #rewardsManagerList,
     #rewardRequestsList,
     #unifiedStudentsList {
-        grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
-/* الهواتف */
+@media (max-width: 760px) {
+    #dashboard {
+        width: calc(100% - 24px);
+        margin: 15px auto;
+    }
 
-@media (max-width: 600px) {
+    #dashboard > header,
+    .dashboard-header,
+    .page-header {
+        padding: 21px;
+        border-radius: 17px;
+    }
+
+    .panel,
+    .section-card,
+    .dashboard-card {
+        padding: 19px;
+        margin-bottom: 16px;
+        border-radius: 16px;
+    }
+
+    #studentForm,
+    #rewardForm,
+    .form-grid {
+        gap: 13px;
+    }
+
+    #studentsList,
+    #rewardsManagerList,
+    #rewardRequestsList,
+    #unifiedStudentsList {
+        gap: 12px;
+    }
+
+    .student-card,
+    .reward-card,
+    .reward-manager-card,
+    .request-card,
+    #unifiedStudentsList > * {
+        padding: 15px;
+    }
+}
+
+/* ==========================================
+   الهواتف
+   ========================================== */
+
+@media (max-width: 520px) {
     body {
         font-size: 14px;
     }
@@ -507,8 +951,8 @@ h3 {
     #loginBox,
     #teacherRegistrationBox {
         width: calc(100% - 24px);
-        margin: 24px auto;
-        padding: 22px 18px;
+        margin: 22px auto;
+        padding: 22px 17px;
         border-radius: 18px;
     }
 
@@ -517,9 +961,13 @@ h3 {
     .page-header {
         align-items: stretch;
         flex-direction: column;
-        gap: 12px;
+        gap: 13px;
         padding: 18px;
-        border-radius: 16px;
+        margin-bottom: 15px;
+    }
+
+    .teacher-info {
+        flex-basis: auto;
     }
 
     #logoutButton {
@@ -529,13 +977,21 @@ h3 {
     .panel,
     .section-card,
     .dashboard-card {
-        padding: 16px;
-        margin-bottom: 14px;
+        padding: 15px;
+        margin-bottom: 13px;
         border-radius: 14px;
     }
 
+    .panel h2,
+    .section-card h2,
+    .dashboard-card h2 {
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+    }
+
     #studentForm,
-    #rewardForm {
+    #rewardForm,
+    .form-grid {
         grid-template-columns: minmax(0, 1fr);
         gap: 12px;
     }
@@ -547,42 +1003,106 @@ h3 {
         grid-column: auto;
     }
 
+    #studentSaveButton,
+    #cancelStudentButton,
+    #rewardSaveButton,
+    #cancelRewardButton {
+        width: 100%;
+        justify-self: stretch;
+    }
+
     #studentsList,
     #rewardsManagerList,
     #rewardRequestsList,
     #unifiedStudentsList {
         grid-template-columns: minmax(0, 1fr);
+        gap: 11px;
     }
 
     .student-card,
+    .reward-card,
     .reward-manager-card,
-    .request-card {
-        padding: 15px;
+    .request-card,
+    #unifiedStudentsList > * {
+        padding: 14px;
     }
 
-    .card-actions {
-        gap: 8px;
+    .card-actions,
+    .student-actions,
+    .reward-actions,
+    .request-actions {
+        gap: 7px;
     }
 
-    .card-actions button {
-        flex: 1 1 100%;
+    .card-actions button,
+    .student-actions button,
+    .reward-actions button,
+    .request-actions button {
+        flex: 1 1 calc(50% - 7px);
         min-height: 40px;
+    }
+
+    #teacherRegistrationBox .registration-class-row {
+        padding: 12px;
     }
 
     input,
     select,
     textarea {
+        min-height: 45px;
         font-size: 16px;
+    }
+
+    textarea {
+        min-height: 90px;
+    }
+
+    .main-button,
+    #teacherLoginButton,
+    #registerTeacherButton {
+        min-height: 45px;
+    }
+
+    footer {
+        padding: 16px 10px;
     }
 }
 
-/* تقليل الحركة لمن يفضل ذلك */
+/* ==========================================
+   الشاشات الصغيرة جدًا
+   ========================================== */
+
+@media (max-width: 350px) {
+    #loginBox,
+    #teacherRegistrationBox {
+        padding: 18px 13px;
+    }
+
+    .panel,
+    .section-card,
+    .dashboard-card {
+        padding: 12px;
+    }
+
+    .student-actions button,
+    .reward-actions button,
+    .request-actions button,
+    .card-actions button {
+        flex-basis: 100%;
+    }
+}
+
+/* ==========================================
+   تقليل الحركة وإمكانية الوصول
+   ========================================== */
 
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
     *::after {
         scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
     }
 }
