@@ -1,17 +1,25 @@
-
 /* =========================================================
    نجوم صفي - teacher.js
    Firebase Compat SDK
-   متوافق مع teacher.html
+   يستخدم تطبيق teacherApp من teacher-firebase.js
    ========================================================= */
 
 "use strict";
 
-if (!window.firebase || !firebase.apps || !firebase.apps.length) {
-  console.error("Firebase غير مهيأ. تحققي من teacher-firebase.js.");
+if (
+  !window.firebase ||
+  !window.teacherApp ||
+  !window.teacherAuth ||
+  !window.teacherDB
+) {
+  console.error(
+    "[نجوم صفي] Firebase غير مهيأ. تحققي من ترتيب ملفات Firebase وteacher-firebase.js."
+  );
+
   const errorBox = document.getElementById("loginError");
   if (errorBox) {
-    errorBox.textContent = "تعذر الاتصال بالخدمة. أعيدي تحميل الصفحة.";
+    errorBox.textContent =
+      "تعذر تهيئة الاتصال بالخدمة. أعيدي تحميل الصفحة، وإذا استمرت المشكلة فتحققي من إعدادات Firebase.";
     errorBox.style.display = "block";
   }
 } else {
@@ -19,6 +27,7 @@ if (!window.firebase || !firebase.apps || !firebase.apps.length) {
 }
 
 function initializeTeacherPanel() {
+  // استخدام تطبيق المعلمة المسمى teacherApp.
   const db = window.teacherDB;
   const auth = window.teacherAuth;
 
@@ -42,7 +51,7 @@ function initializeTeacherPanel() {
 
   function value(...ids) {
     const node = el(...ids);
-    return node ? node.value.trim() : "";
+    return node ? String(node.value ?? "").trim() : "";
   }
 
   function setValue(val, ...ids) {
@@ -94,7 +103,7 @@ function initializeTeacherPanel() {
   }
 
   function errorMessage(error) {
-    console.error("Teacher panel error:", error);
+    console.error("[نجوم صفي] خطأ:", error);
 
     const code = error?.code || "";
 
@@ -118,11 +127,13 @@ function initializeTeacherPanel() {
       "permission-denied":
         "لا توجد صلاحية للعملية. تحققي من قواعد Firestore.",
       "unavailable":
-        "الخدمة غير متاحة مؤقتًا. حاولي مجددًا."
+        "الخدمة غير متاحة مؤقتًا. حاولي مجددًا.",
+      "failed-precondition":
+        "تعذر تنفيذ العملية بسبب إعدادات قاعدة البيانات."
     };
 
     return messages[code] || error?.message ||
-      "حدث خطأ غير متوقع. حاولي مرة أخرى.";
+      "حدث خطأ غير متوقع. افتحي Console لمعرفة التفاصيل.";
   }
 
   function requireTeacher() {
@@ -165,9 +176,17 @@ function initializeTeacherPanel() {
     const school = teacherProfile.schoolName || "المدرسة";
     const subject = teacherProfile.subjectName || "";
 
-    if (el("teacherName")) el("teacherName").textContent = name;
-    if (el("schoolName")) el("schoolName").textContent = school;
-    if (el("subjectName")) el("subjectName").value = subject;
+    if (el("teacherName")) {
+      el("teacherName").textContent = name;
+    }
+
+    if (el("schoolName")) {
+      el("schoolName").textContent = school;
+    }
+
+    if (el("subjectName")) {
+      el("subjectName").value = subject;
+    }
 
     updateSelectedClassInfo();
   }
@@ -184,7 +203,9 @@ function initializeTeacherPanel() {
       el("selectedSection").textContent = section || "—";
     }
 
-    if (el("className")) el("className").value = className;
+    if (el("className")) {
+      el("className").value = className;
+    }
   }
 
   /* -------------------- الصفوف والشعب -------------------- */
@@ -284,77 +305,46 @@ function initializeTeacherPanel() {
     }
 
     const button = el("teacherLoginButton");
-    if (button) button.disabled = true;
+    const originalText = button?.textContent || "دخول لوحة المعلمة";
+
+    if (button) {
+      button.disabled = true;
+      button.textContent = "جارٍ تسجيل الدخول...";
+    }
 
     try {
-      await auth.signInWithEmailAndPassword(email, password);
-      // onAuthStateChanged يتولى إظهار لوحة التحكم.
-    } catch (error) {
-      showMessage(errorMessage(error), "error", "loginError");
-    } finally {
-      if (button) button.disabled = false;
-    }
-  }
-
-  async function teacherRegister() {
-    clearMessage("registrationError");
-
-    const name = value("registerTeacherName");
-    const schoolName = value("registerSchoolName");
-    const subjectName = value("registerSubjectName");
-    const email = value("registerTeacherEmail");
-    const password = value("registerTeacherPassword");
-    const confirmPassword = value("confirmTeacherPassword");
-    const classes = readRegistrationClasses();
-
-    if (!name || !schoolName || !subjectName || !email || !password) {
-      showMessage(
-        "أكملي جميع البيانات المطلوبة.",
-        "error",
-        "registrationError"
+      console.log("[نجوم صفي] بدء تسجيل الدخول.");
+      console.log(
+        "[نجوم صفي] Firebase project:",
+        auth.app.options.projectId
       );
-      return;
-    }
+      console.log("[نجوم صفي] Firebase app:", auth.app.name);
 
-    if (password.length < 8) {
-      showMessage(
-        "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل.",
-        "error",
-        "registrationError"
-      );
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      showMessage(
-        "كلمتا المرور غير متطابقتين.",
-        "error",
-        "registrationError"
-      );
-      return;
-    }
-
-    if (!classes.length) {
-      showMessage(
-        "اختاري صفًا واحدًا على الأقل وحددي شعبة له.",
-        "error",
-        "registrationError"
-      );
-      return;
-    }
-
-    const button = el("registerTeacherButton");
-    if (button) button.disabled = true;
-
-    let credential = null;
-
-    try {
-      credential = await auth.createUserWithEmailAndPassword(
+      const credential = await auth.signInWithEmailAndPassword(
         email,
         password
       );
 
-      await db.collection("teachers").doc(credential.user.uid).set({
+      console.log(
+        "[نجوم صفي] نجح تسجيل الدخول للمستخدم:",
+        credential.user.uid
+      );
+
+      showMessage(
+        "تم تسجيل الدخول بنجاح، جارٍ فتح لوحة المعلمة...",
+        "success",
+        "loginError"
+      );
+    } catch (error) {
+      showMessage(errorMessage(error), "error", "loginError");
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    }
+  }
+        const profile = {
         teacherId: credential.user.uid,
         name,
         email,
@@ -362,7 +352,9 @@ function initializeTeacherPanel() {
         subjectName,
         classes,
         createdAt: serverTimestamp()
-      });
+      };
+
+      await db.collection("teachers").doc(credential.user.uid).set(profile);
 
       teacherProfile = {
         name,
@@ -373,15 +365,11 @@ function initializeTeacherPanel() {
       };
 
       showMessage(
-        "تم إنشاء الحساب بنجاح.",
+        "تم إنشاء الحساب وحفظ بيانات المعلمة بنجاح.",
         "success",
         "registrationError"
       );
-
-      // تغيير الواجهة بعد نجاح إنشاء الحساب.
-      // ستُظهر مراقبة حالة المصادقة لوحة التحكم.
     } catch (error) {
-      // إذا فشل حفظ الملف بعد إنشاء الحساب، نوضح المشكلة.
       showMessage(errorMessage(error), "error", "registrationError");
     } finally {
       if (button) button.disabled = false;
@@ -392,7 +380,6 @@ function initializeTeacherPanel() {
     clearMessage("loginError");
 
     const email = value("teacherEmail");
-
     if (!email) {
       showMessage(
         "أدخلي بريدك الإلكتروني أولًا لاستعادة كلمة المرور.",
@@ -426,18 +413,15 @@ function initializeTeacherPanel() {
     const snapshot = await db.collection("teachers").doc(user.uid).get();
 
     if (!snapshot.exists) {
-      teacherProfile = {
-        name: user.email || "المعلمة",
-        email: user.email || "",
-        schoolName: "",
-        subjectName: "",
-        classes: []
-      };
-      return;
+      throw new Error(
+        "تم تسجيل الدخول، لكن لم يُعثر على ملف المعلمة في مجموعة teachers. تحققي من حفظ الملف وصلاحيات Firestore."
+      );
     }
 
     teacherProfile = snapshot.data() || {};
   }
+
+  /* -------------------- مراقبة حالة المصادقة -------------------- */
 
   auth.onAuthStateChanged(async user => {
     currentTeacher = user || null;
@@ -458,11 +442,15 @@ function initializeTeacherPanel() {
       return;
     }
 
-    try {
-      if (loginBox) loginBox.style.display = "none";
-      if (registrationBox) registrationBox.style.display = "none";
-      if (dashboard) dashboard.style.display = "block";
+    if (loginBox) loginBox.style.display = "none";
+    if (registrationBox) registrationBox.style.display = "none";
 
+    if (dashboard) {
+      dashboard.style.display = "block";
+      dashboard.setAttribute("aria-busy", "true");
+    }
+
+    try {
       await loadTeacherProfile(user);
       updateTeacherInfo();
       populateActiveClasses();
@@ -472,8 +460,16 @@ function initializeTeacherPanel() {
         loadRewards(),
         loadRewardRequests()
       ]);
+
+      console.log("[نجوم صفي] اكتمل تحميل لوحة المعلمة.");
     } catch (error) {
+      console.error(
+        "[نجوم صفي] تعذر تحميل ملف المعلمة أو بيانات اللوحة:",
+        error
+      );
       showMessage(errorMessage(error), "error", "studentStatus");
+    } finally {
+      if (dashboard) dashboard.removeAttribute("aria-busy");
     }
   });
 
@@ -545,7 +541,8 @@ function initializeTeacherPanel() {
     );
 
     if (!filtered.length) {
-      container.innerHTML = "<p>لا توجد طالبات في هذه الشعبة حتى الآن.</p>";
+      container.innerHTML =
+        "<p>لا توجد طالبات في هذه الشعبة حتى الآن.</p>";
       return;
     }
 
@@ -566,202 +563,59 @@ function initializeTeacherPanel() {
       </div>
     `).join("");
   }
-
-  async function saveStudent() {
-    try {
-      requireTeacher();
-
-      const data = getStudentFormData();
-      const teacherId = currentTeacher.uid;
-
-      const studentRef = editingStudentId
-        ? studentsRef().doc(editingStudentId)
-        : studentsRef().doc();
-
-      const newIndexRef = codeIndexRef(data.code);
-
-      await db.runTransaction(async transaction => {
-        const studentSnapshot = editingStudentId
-          ? await transaction.get(studentRef)
-          : null;
-
-        if (editingStudentId && !studentSnapshot.exists) {
-          throw new Error("لم يتم العثور على سجل الطالبة.");
-        }
-
-        const newIndexSnapshot = await transaction.get(newIndexRef);
-
-        let oldIndexRef = null;
-        let oldIndexSnapshot = null;
-        let oldCode = null;
-
-        if (studentSnapshot?.exists) {
-          oldCode = studentSnapshot.data().code;
-
-          if (oldCode && oldCode !== data.code) {
-            oldIndexRef = codeIndexRef(oldCode);
-            oldIndexSnapshot = await transaction.get(oldIndexRef);
-          }
-        }
-
-        if (newIndexSnapshot.exists) {
-          const index = newIndexSnapshot.data();
-
-          const sameStudent =
-            index.teacherId === teacherId &&
-            index.studentId === studentRef.id;
-
-          if (!sameStudent) {
-            throw new Error("هذا الرمز مستخدم بالفعل. اختاري رمزًا آخر.");
-          }
-        }
-
-        const oldData = studentSnapshot?.exists
-          ? studentSnapshot.data()
-          : {};
-
-        transaction.set(studentRef, {
-          ...data,
-          teacherId,
-          createdAt: oldData.createdAt || serverTimestamp(),
-          updatedAt: serverTimestamp()
-        }, { merge: true });
-
-        transaction.set(newIndexRef, {
-          code: data.code,
-          teacherId,
-          studentId: studentRef.id,
-          className: data.className,
-          section: data.section,
-          createdAt: newIndexSnapshot.exists
-            ? (newIndexSnapshot.data().createdAt || serverTimestamp())
-            : serverTimestamp(),
-          updatedAt: serverTimestamp()
-        }, { merge: true });
-
-        if (oldIndexRef && oldIndexSnapshot?.exists) {
-          const oldIndex = oldIndexSnapshot.data();
-
           if (
-            oldIndex.teacherId === teacherId &&
-            oldIndex.studentId === studentRef.id
-          ) {
-            transaction.delete(oldIndexRef);
-          }
-        }
-      });
-
-      editingStudentId = null;
-
-      setValue("", "studentName", "studentCode", "studentMessage");
-      setValue("0", "studentPoints");
-
-      if (el("studentSaveButton")) {
-        el("studentSaveButton").textContent = "➕ إضافة الطالبة";
-      }
-      if (el("cancelStudentButton")) {
-        el("cancelStudentButton").style.display = "none";
-      }
-
-      await loadStudents();
-      showMessage("تم حفظ بيانات الطالبة بنجاح.", "success", "studentStatus");
-    } catch (error) {
-      showMessage(errorMessage(error), "error", "studentStatus");
-    }
-  }
-
-  function editStudent(studentId) {
-    const student = studentsCache.find(item => item.id === studentId);
-    if (!student) {
-      showMessage("لم يتم العثور على الطالبة.", "error", "studentStatus");
-      return;
-    }
-
-    editingStudentId = studentId;
-
-    setValue(student.name, "studentName");
-    setValue(student.code, "studentCode");
-    setValue(student.points ?? 0, "studentPoints");
-    setValue(student.message, "studentMessage");
-    setValue(student.className, "activeClassSelect");
-    updateSections();
-    setValue(student.section, "activeSectionSelect");
-    updateSelectedClassInfo();
-
-    if (el("studentSaveButton")) {
-      el("studentSaveButton").textContent = "حفظ التعديلات";
-    }
-    if (el("cancelStudentButton")) {
-      el("cancelStudentButton").style.display = "inline-block";
-    }
-  }
-
-  function cancelStudentEdit() {
-    editingStudentId = null;
-
-    setValue("", "studentName", "studentCode", "studentMessage");
-    setValue("0", "studentPoints");
-
-    if (el("studentSaveButton")) {
-      el("studentSaveButton").textContent = "➕ إضافة الطالبة";
-    }
-    if (el("cancelStudentButton")) {
-      el("cancelStudentButton").style.display = "none";
-    }
-
-    clearMessage("studentStatus");
-  }
-
-  async function deleteStudent(studentId) {
-    if (!confirm("هل تريدين حذف هذه الطالبة؟")) return;
-
-    try {
-      requireTeacher();
-
-      const studentRef = studentsRef().doc(studentId);
-
-      await db.runTransaction(async transaction => {
-        const snapshot = await transaction.get(studentRef);
-
-        if (!snapshot.exists) {
-          throw new Error("سجل الطالبة غير موجود.");
-        }
-
-        const student = snapshot.data();
-        const code = student.code;
-
-        let indexRef = null;
-        let indexSnapshot = null;
-
-        if (code) {
-          indexRef = codeIndexRef(code);
-          indexSnapshot = await transaction.get(indexRef);
-        }
-
-        if (indexSnapshot?.exists) {
-          const index = indexSnapshot.data();
-
-          if (
-            index.teacherId === currentTeacher.uid &&
-            index.studentId === studentId
-          ) {
-            transaction.delete(indexRef);
-          }
+          indexRef &&
+          indexSnapshot?.exists &&
+          indexSnapshot.data().teacherId === currentTeacher.uid &&
+          indexSnapshot.data().studentId === studentId
+        ) {
+          transaction.delete(indexRef);
         }
 
         transaction.delete(studentRef);
       });
 
-      if (editingStudentId === studentId) cancelStudentEdit();
-
       await loadStudents();
-      showMessage("تم حذف الطالبة.", "success", "studentStatus");
+
+      showMessage(
+        "تم حذف الطالبة بنجاح.",
+        "success",
+        "studentStatus"
+      );
     } catch (error) {
       showMessage(errorMessage(error), "error", "studentStatus");
     }
   }
 
   /* -------------------- إدارة المكافآت -------------------- */
+
+  function getRewardFormData() {
+    const name = value("rewardName");
+    const priceValue = value("rewardPrice");
+    const icon = value("rewardIcon") || "🎁";
+    const description = value("rewardDescription");
+    const price = Number(priceValue);
+
+    if (!name) {
+      throw new Error("أدخلي اسم المكافأة.");
+    }
+
+    if (
+      priceValue === "" ||
+      !Number.isSafeInteger(price) ||
+      price <= 0
+    ) {
+      throw new Error("أدخلي سعرًا صحيحًا للمكافأة بالنقاط.");
+    }
+
+    return {
+      name,
+      price,
+      icon,
+      description,
+      active: true
+    };
+  }
 
   async function loadRewards() {
     if (!currentTeacher) return [];
@@ -786,29 +640,24 @@ function initializeTeacherPanel() {
     const container = el("rewardsManagerList");
     if (!container) return;
 
-    if (!activeClass() || !activeSection()) {
-      container.textContent = "اختاري الصف والشعبة أولًا.";
+    if (!rewardsCache.length) {
+      container.innerHTML = "<p>لا توجد مكافآت مضافة حتى الآن.</p>";
       return;
     }
 
-    const filtered = rewardsCache.filter(reward =>
-      reward.className === activeClass() &&
-      String(reward.section) === String(activeSection())
-    );
-
-    if (!filtered.length) {
-      container.innerHTML = "<p>لا توجد مكافآت في هذه الشعبة حتى الآن.</p>";
-      return;
-    }
-
-    container.innerHTML = filtered.map(reward => `
+    container.innerHTML = rewardsCache.map(reward => `
       <div class="reward-card">
-        <span>${escapeHTML(reward.icon || "🎁")}</span>
-        <strong>${escapeHTML(reward.name || "")}</strong>
-        <div>النقاط المطلوبة: ${Number(reward.price) || 0}</div>
+        <div>
+          <span>${escapeHTML(reward.icon || "🎁")}</span>
+          <strong>${escapeHTML(reward.name)}</strong>
+        </div>
+        <div>السعر: ${Number(reward.price) || 0} نقطة</div>
         <div>${escapeHTML(reward.description || "")}</div>
+        <button type="button" data-edit-reward="${escapeHTML(reward.id)}">
+          تعديل
+        </button>
         <button type="button" data-delete-reward="${escapeHTML(reward.id)}">
-          حذف المكافأة
+          حذف
         </button>
       </div>
     `).join("");
@@ -818,83 +667,108 @@ function initializeTeacherPanel() {
     try {
       requireTeacher();
 
-      const name = value("rewardName");
-      const priceValue = value("rewardPrice");
-      const icon = value("rewardIcon") || "🎁";
-      const description = value("rewardDescription");
+      const data = getRewardFormData();
 
-      const className = activeClass();
-      const section = activeSection();
-      const price = Number(priceValue);
+      const rewardRef = editingRewardId
+        ? rewardsRef().doc(editingRewardId)
+        : rewardsRef().doc();
 
-      if (!className || !section) {
-        throw new Error("اختاري الصف والشعبة أولًا.");
-      }
-
-      if (!name) throw new Error("أدخلي اسم المكافأة.");
-
-      if (
-        priceValue === "" ||
-        !Number.isSafeInteger(price) ||
-        price <= 0
-      ) {
-        throw new Error("أدخلي عدد نقاط صحيحًا أكبر من صفر.");
-      }
-
-      const data = {
-        name,
-        price,
-        icon,
-        description,
-        className,
-        section,
-        active: true,
+      await rewardRef.set({
+        ...data,
         teacherId: currentTeacher.uid,
-        updatedAt: serverTimestamp()
-      };
-
-      if (editingRewardId) {
-        await rewardsRef().doc(editingRewardId).update(data);
-      } else {
-        await rewardsRef().add({
-          ...data,
+        updatedAt: serverTimestamp(),
+        ...(editingRewardId ? {} : {
           createdAt: serverTimestamp()
-        });
-      }
+        })
+      }, { merge: true });
 
       editingRewardId = null;
 
       setValue("", "rewardName", "rewardDescription");
+      setValue("1", "rewardPrice");
       setValue("🎁", "rewardIcon");
-      setValue("", "rewardPrice");
 
       if (el("rewardSaveButton")) {
         el("rewardSaveButton").textContent = "➕ إضافة المكافأة";
       }
+
       if (el("cancelRewardButton")) {
         el("cancelRewardButton").style.display = "none";
       }
 
       await loadRewards();
-      showMessage("تم حفظ المكافأة بنجاح.", "success", "rewardStatus");
+
+      showMessage(
+        "تم حفظ المكافأة بنجاح.",
+        "success",
+        "rewardStatus"
+      );
     } catch (error) {
       showMessage(errorMessage(error), "error", "rewardStatus");
     }
+  }
+
+  function editReward(rewardId) {
+    const reward = rewardsCache.find(item => item.id === rewardId);
+
+    if (!reward) {
+      showMessage("لم يتم العثور على المكافأة.", "error", "rewardStatus");
+      return;
+    }
+
+    editingRewardId = rewardId;
+
+    setValue(reward.name, "rewardName");
+    setValue(reward.price, "rewardPrice");
+    setValue(reward.icon || "🎁", "rewardIcon");
+    setValue(reward.description || "", "rewardDescription");
+
+    if (el("rewardSaveButton")) {
+      el("rewardSaveButton").textContent = "حفظ التعديلات";
+    }
+
+    if (el("cancelRewardButton")) {
+      el("cancelRewardButton").style.display = "inline-block";
+    }
+  }
+
+  function cancelRewardEdit() {
+    editingRewardId = null;
+
+    setValue("", "rewardName", "rewardDescription");
+    setValue("1", "rewardPrice");
+    setValue("🎁", "rewardIcon");
+
+    if (el("rewardSaveButton")) {
+      el("rewardSaveButton").textContent = "➕ إضافة المكافأة";
+    }
+
+    if (el("cancelRewardButton")) {
+      el("cancelRewardButton").style.display = "none";
+    }
+
+    clearMessage("rewardStatus");
   }
 
   async function deleteReward(rewardId) {
     if (!confirm("هل تريدين حذف هذه المكافأة؟")) return;
 
     try {
+      requireTeacher();
+
       await rewardsRef().doc(rewardId).delete();
       await loadRewards();
-      showMessage("تم حذف المكافأة.", "success", "rewardStatus");
+
+      showMessage(
+        "تم حذف المكافأة بنجاح.",
+        "success",
+        "rewardStatus"
+      );
     } catch (error) {
       showMessage(errorMessage(error), "error", "rewardStatus");
     }
   }
-
-  /* -------------------- طلبات استبدال المكافآت -------------------- */
+    /* -------------------- طلبات استبدال المكافآت -------------------- */
 
   async function loadRewardRequests() {
     if (!currentTeacher) return [];
@@ -924,8 +798,8 @@ function initializeTeacherPanel() {
       String(request.section) === String(activeSection())
     );
 
-    const pending = filtered.filter(request =>
-      request.status === "pending"
+    const pending = filtered.filter(
+      request => request.status === "pending"
     ).length;
 
     if (el("pendingCount")) {
@@ -938,7 +812,8 @@ function initializeTeacherPanel() {
     }
 
     if (!filtered.length) {
-      container.innerHTML = "<p>لا توجد طلبات استبدال في هذه الشعبة.</p>";
+      container.innerHTML =
+        "<p>لا توجد طلبات استبدال في هذه الشعبة.</p>";
       return;
     }
 
@@ -948,14 +823,24 @@ function initializeTeacherPanel() {
         <div>المكافأة: ${escapeHTML(request.rewardName || "")}</div>
         <div>النقاط: ${Number(request.price) || 0}</div>
         <div>الحالة: ${escapeHTML(request.status || "pending")}</div>
+
         ${
           request.status === "pending"
-            ? `<button type="button"
-                 data-process-request="${escapeHTML(request.id)}"
-                 data-new-status="approved">قبول الطلب</button>
-               <button type="button"
-                 data-process-request="${escapeHTML(request.id)}"
-                 data-new-status="rejected">رفض الطلب</button>`
+            ? `
+              <button
+                type="button"
+                data-process-request="${escapeHTML(request.id)}"
+                data-new-status="approved">
+                قبول الطلب
+              </button>
+
+              <button
+                type="button"
+                data-process-request="${escapeHTML(request.id)}"
+                data-new-status="rejected">
+                رفض الطلب
+              </button>
+            `
             : ""
         }
       </div>
@@ -964,7 +849,11 @@ function initializeTeacherPanel() {
 
   async function processRewardRequest(requestId, newStatus) {
     if (!["approved", "rejected"].includes(newStatus)) {
-      showMessage("حالة الطلب غير صحيحة.", "error", "studentStatus");
+      showMessage(
+        "حالة الطلب غير صحيحة.",
+        "error",
+        "studentStatus"
+      );
       return;
     }
 
@@ -987,16 +876,19 @@ function initializeTeacherPanel() {
         }
 
         let studentRef = null;
-        let studentSnapshot = null;
         let pointsAfter = null;
 
         if (newStatus === "approved") {
           if (!request.studentId) {
-            throw new Error("الطلب لا يحتوي على معرّف الطالبة.");
+            throw new Error(
+              "الطلب لا يحتوي على معرّف الطالبة."
+            );
           }
 
           studentRef = studentsRef().doc(request.studentId);
-          studentSnapshot = await transaction.get(studentRef);
+
+          const studentSnapshot =
+            await transaction.get(studentRef);
 
           if (!studentSnapshot.exists) {
             throw new Error("تعذر العثور على الطالبة.");
@@ -1007,7 +899,9 @@ function initializeTeacherPanel() {
           const price = Number(request.price);
 
           if (!Number.isSafeInteger(price) || price <= 0) {
-            throw new Error("قيمة نقاط المكافأة غير صحيحة.");
+            throw new Error(
+              "قيمة نقاط المكافأة غير صحيحة."
+            );
           }
 
           if (points < price) {
@@ -1030,7 +924,10 @@ function initializeTeacherPanel() {
         });
       });
 
-      await Promise.all([loadStudents(), loadRewardRequests()]);
+      await Promise.all([
+        loadStudents(),
+        loadRewardRequests()
+      ]);
 
       showMessage(
         newStatus === "approved"
@@ -1039,39 +936,54 @@ function initializeTeacherPanel() {
         "success",
         "studentStatus"
       );
+
     } catch (error) {
-      showMessage(errorMessage(error), "error", "studentStatus");
+      showMessage(
+        errorMessage(error),
+        "error",
+        "studentStatus"
+      );
     }
   }
-
-  /* -------------------- واجهة التسجيل وإدارة الصفوف -------------------- */
+    /* -------------------- واجهة التسجيل -------------------- */
 
   function showLogin() {
-    if (el("loginBox")) el("loginBox").style.display = "block";
+    if (el("loginBox")) {
+      el("loginBox").style.display = "block";
+    }
+
     if (el("teacherRegistrationBox")) {
       el("teacherRegistrationBox").style.display = "none";
     }
+
     clearMessage("loginError");
     clearMessage("registrationError");
   }
 
   function showRegistration() {
-    if (el("loginBox")) el("loginBox").style.display = "none";
+    if (el("loginBox")) {
+      el("loginBox").style.display = "none";
+    }
+
     if (el("teacherRegistrationBox")) {
       el("teacherRegistrationBox").style.display = "block";
     }
+
     clearMessage("loginError");
     clearMessage("registrationError");
   }
 
   function addRegistrationClass() {
     const container = el("registrationClasses");
-    const firstRow = container?.querySelector(".registration-class-row");
+    const firstRow = container?.querySelector(
+      ".registration-class-row"
+    );
 
     if (!container || !firstRow) return;
 
     const clone = firstRow.cloneNode(true);
     const select = clone.querySelector(".register-class-select");
+
     if (select) select.value = "";
 
     clone.querySelectorAll('input[type="checkbox"]').forEach(input => {
@@ -1083,84 +995,196 @@ function initializeTeacherPanel() {
 
   /* -------------------- ربط الأحداث -------------------- */
 
-tton")?.addEventListener("click", teacherLogout);
+  function bindTeacherEvents() {
+    const loginForm = el("teacherLoginForm");
 
-    el("studentSaveButton")?.addEventListener("click", saveStudent);
-    el("rewardSaveButton")?.addEventListener("click", saveReward);
+    if (loginForm && !loginForm.dataset.bound) {
+      loginForm.dataset.bound = "true";
 
-    el("cancelStudentButton")?.addEventListener(
-      "click",
-      cancelStudentEdit
-    );
+      loginForm.addEventListener("submit", event => {
+        event.preventDefault();
+        teacherLogin();
+      });
+    }
 
-    el("cancelRewardButton")?.addEventListener("click", () => {
+    const registrationForm = el("teacherRegistrationForm");
+
+    if (registrationForm && !registrationForm.dataset.bound) {
+      registrationForm.dataset.bound = "true";
+
+      registrationForm.addEventListener("submit", event => {
+        event.preventDefault();
+        teacherRegister();
+      });
+    }
+
+    const bindClick = (id, handler) => {
+      const node = el(id);
+
+      if (!node || node.dataset.bound) return;
+
+      node.dataset.bound = "true";
+      node.addEventListener("click", handler);
+    };
+
+    bindClick("showRegisterButton", showRegistration);
+    bindClick("backToLoginButton", showLogin);
+    bindClick("resetPasswordButton", resetPassword);
+    bindClick("logoutButton", teacherLogout);
+
+    bindClick("studentSaveButton", saveStudent);
+    bindClick("rewardSaveButton", saveReward);
+    bindClick("cancelStudentButton", cancelStudentEdit);
+
+    bindClick("cancelRewardButton", () => {
       editingRewardId = null;
-      setValue("", "rewardName", "rewardPrice", "rewardDescription");
+
+      setValue(
+        "",
+        "rewardName",
+        "rewardPrice",
+        "rewardDescription"
+      );
+
       setValue("🎁", "rewardIcon");
 
       if (el("rewardSaveButton")) {
         el("rewardSaveButton").textContent = "➕ إضافة المكافأة";
       }
+
       if (el("cancelRewardButton")) {
         el("cancelRewardButton").style.display = "none";
       }
     });
 
-    el("addRegistrationClassButton")?.addEventListener(
-      "click",
+    bindClick(
+      "addRegistrationClassButton",
       addRegistrationClass
     );
 
-    el("registrationClasses")?.addEventListener("click", event => {
-      const button = event.target.closest(".remove-class-button");
-      if (!button) return;
+    const registrationClasses = el("registrationClasses");
 
-      const rows = document.querySelectorAll(".registration-class-row");
+    if (
+      registrationClasses &&
+      !registrationClasses.dataset.bound
+    ) {
+      registrationClasses.dataset.bound = "true";
 
-      if (rows.length <= 1) {
-        showMessage(
-          "يجب الاحتفاظ بصف واحد على الأقل.",
-          "error",
-          "registrationError"
+      registrationClasses.addEventListener("click", event => {
+        const button = event.target.closest(
+          ".remove-class-button"
         );
-        return;
-      }
 
-      button.closest(".registration-class-row")?.remove();
-    });
+        if (!button) return;
 
-    el("activeClassSelect")?.addEventListener("change", updateSections);
+        const rows = document.querySelectorAll(
+          ".registration-class-row"
+        );
 
-    el("activeSectionSelect")?.addEventListener("change", () => {
-      updateSelectedClassInfo();
-      renderStudents();
-      renderRewards();
-      renderRewardRequests();
-    });
+        if (rows.length <= 1) {
+          showMessage(
+            "يجب الاحتفاظ بصف واحد على الأقل.",
+            "error",
+            "registrationError"
+          );
+          return;
+        }
 
-    el("studentsList")?.addEventListener("click", event => {
-      const editButton = event.target.closest("[data-edit-student]");
-      const deleteButton = event.target.closest("[data-delete-student]");
+        button.closest(".registration-class-row")?.remove();
+      });
+    }
 
-      if (editButton) editStudent(editButton.dataset.editStudent);
-      if (deleteButton) deleteStudent(deleteButton.dataset.deleteStudent);
-    });
+    const classSelect = el("activeClassSelect");
 
-    el("rewardsManagerList")?.addEventListener("click", event => {
-      const deleteButton = event.target.closest("[data-delete-reward]");
-      if (deleteButton) deleteReward(deleteButton.dataset.deleteReward);
-    });
+    if (classSelect && !classSelect.dataset.bound) {
+      classSelect.dataset.bound = "true";
+      classSelect.addEventListener("change", updateSections);
+    }
 
-    el("rewardRequestsList")?.addEventListener("click", event => {
-      const button = event.target.closest("[data-process-request]");
-      if (!button) return;
+    const sectionSelect = el("activeSectionSelect");
 
-      processRewardRequest(
-        button.dataset.processRequest,
-        button.dataset.newStatus
-      );
-    });
-  });
+    if (sectionSelect && !sectionSelect.dataset.bound) {
+      sectionSelect.dataset.bound = "true";
+
+      sectionSelect.addEventListener("change", () => {
+        updateSelectedClassInfo();
+        renderStudents();
+        renderRewards();
+        renderRewardRequests();
+      });
+    }
+
+    const studentsList = el("studentsList");
+
+    if (studentsList && !studentsList.dataset.bound) {
+      studentsList.dataset.bound = "true";
+
+      studentsList.addEventListener("click", event => {
+        const editButton = event.target.closest(
+          "[data-edit-student]"
+        );
+
+        const deleteButton = event.target.closest(
+          "[data-delete-student]"
+        );
+
+        if (editButton) {
+          editStudent(editButton.dataset.editStudent);
+        }
+
+        if (deleteButton) {
+          deleteStudent(deleteButton.dataset.deleteStudent);
+        }
+      });
+    }
+
+    const rewardsList = el("rewardsManagerList");
+
+    if (rewardsList && !rewardsList.dataset.bound) {
+      rewardsList.dataset.bound = "true";
+
+      rewardsList.addEventListener("click", event => {
+        const deleteButton = event.target.closest(
+          "[data-delete-reward]"
+        );
+
+        if (deleteButton) {
+          deleteReward(deleteButton.dataset.deleteReward);
+        }
+      });
+    }
+
+    const requestsList = el("rewardRequestsList");
+
+    if (requestsList && !requestsList.dataset.bound) {
+      requestsList.dataset.bound = "true";
+
+      requestsList.addEventListener("click", event => {
+        const button = event.target.closest(
+          "[data-process-request]"
+        );
+
+        if (!button) return;
+
+        processRewardRequest(
+          button.dataset.processRequest,
+          button.dataset.newStatus
+        );
+      });
+    }
+  }
+
+  /* -------------------- تشغيل ربط الأحداث -------------------- */
+
+  if (document.readyState === "loading") {
+    document.addEventListener(
+      "DOMContentLoaded",
+      bindTeacherEvents,
+      { once: true }
+    );
+  } else {
+    bindTeacherEvents();
+  }
 
   /* -------------------- إتاحة الدوال عند الحاجة -------------------- */
 
