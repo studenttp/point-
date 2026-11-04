@@ -28,25 +28,38 @@ window.currentStudentClass = "";
 window.currentStudentSection = "";
 
 // ===================================
-// البحث عن الطالبة عبر خدمة الخادم
+// التحقق من وجود عناصر الصفحة
+// ===================================
+
+function getPageElement(id) {
+  return document.getElementById(id);
+}
+
+// ===================================
+// البحث عن الطالبة عبر Cloud Functions
 // ===================================
 
 async function searchStudent() {
-  const codeInput = document.getElementById("studentcode");
-  const result = document.getElementById("result");
+  const codeInput = getPageElement("studentcode");
+  const result = getPageElement("result");
 
   if (!codeInput || !result) {
-    console.error("تعذر العثور على حقل الرمز أو مساحة النتائج.");
+    console.error(
+      "تعذر العثور على حقل رمز الطالبة أو مساحة عرض النتائج."
+    );
     return;
   }
 
   const code = codeInput.value.trim();
 
+  // منع البحث برمز فارغ.
   if (!code) {
     clearStudentSession();
 
     result.innerHTML = `
-      <div class="error">يرجى إدخال رمز الطالبة.</div>
+      <div class="error">
+        يرجى إدخال رمز الطالبة.
+      </div>
     `;
 
     refreshRewards();
@@ -54,26 +67,44 @@ async function searchStudent() {
     return;
   }
 
+  // مسح بيانات الطالبة السابقة قبل بدء بحث جديد.
+  clearStudentSession();
+
   result.innerHTML = `
-    <div class="rewards-loading">جارٍ البحث عن الطالبة...</div>
+    <div class="rewards-loading">
+      جارٍ البحث عن الطالبة...
+    </div>
   `;
 
   try {
-    if (!window.studentFunctions) {
+    if (
+      !window.studentFunctions ||
+      typeof window.studentFunctions.httpsCallable !== "function"
+    ) {
       throw new Error("CLOUD_FUNCTIONS_NOT_INITIALIZED");
     }
 
-    const lookupStudent = window.studentFunctions
-      .httpsCallable("lookupStudentByCode");
+    // استدعاء الدالة السحابية للبحث عن الرمز.
+    const lookupStudent = window.studentFunctions.httpsCallable(
+      "lookupStudentByCode"
+    );
 
     const response = await lookupStudent({ code });
-    const student = response.data?.student;
 
-    if (!student || !student.studentId || !student.teacherId) {
-      clearStudentSession();
+    const student = response?.data?.student;
 
+    // التحقق من اكتمال البيانات الأساسية.
+    if (
+      !student ||
+      !student.studentId ||
+      !student.teacherId ||
+      !student.code
+    ) {
       result.innerHTML = `
-        <div class="error">❌ لم يتم العثور على الطالبة.</div>
+        <div class="error">
+          ❌ لم يتم العثور على الطالبة.
+          يرجى التأكد من الرمز والمحاولة مرة أخرى.
+        </div>
       `;
 
       refreshRewards();
@@ -81,28 +112,46 @@ async function searchStudent() {
       return;
     }
 
+    // حفظ بيانات الطالبة التي أعادها الخادم.
     window.currentStudentId = student.studentId;
-    window.currentStudentCode = student.code || code;
+    window.currentStudentCode = student.code;
     window.currentStudentName = student.name || "الطالبة";
     window.currentStudentPoints = Number(student.points) || 0;
     window.currentTeacherId = student.teacherId;
     window.currentStudentClass = student.className || "";
     window.currentStudentSection = student.section || "";
 
+    // عرض بطاقة الطالبة.
     result.innerHTML = `
       <div class="student-card">
-        <h2>🌟 ${escapeHtml(window.currentStudentName)}</h2>
+        <h2>
+          🌟 ${escapeHtml(window.currentStudentName)}
+        </h2>
 
         <div class="points">
           🏆 مجموع النقاط
           <h1>${window.currentStudentPoints}</h1>
         </div>
 
+        ${
+          window.currentStudentClass
+            ? `<p>الصف: ${escapeHtml(window.currentStudentClass)}</p>`
+            : ""
+        }
+
+        ${
+          window.currentStudentSection
+            ? `<p>الشعبة: ${escapeHtml(window.currentStudentSection)}</p>`
+            : ""
+        }
+
         <p>${escapeHtml(student.message || "")}</p>
       </div>
     `;
 
     playSuccess();
+
+    // تحديث المتجر بعد تحديد معلمة الطالبة.
     refreshRewards();
 
   } catch (error) {
@@ -142,7 +191,11 @@ function clearStudentSession() {
 
 function refreshRewards() {
   if (typeof window.loadRewards === "function") {
-    window.loadRewards();
+    try {
+      window.loadRewards();
+    } catch (error) {
+      console.error("تعذر تحديث متجر المكافآت:", error);
+    }
   }
 }
 
@@ -151,16 +204,38 @@ function refreshRewards() {
 // ===================================
 
 function playSuccess() {
-  clappingSound.currentTime = 0;
-  clappingSound.play().catch(() => {});
-
-  shineSound.currentTime = 0;
-  shineSound.play().catch(() => {});
+  playAudio(clappingSound);
+  playAudio(shineSound);
 }
 
 function playError() {
-  takSound.currentTime = 0;
-  takSound.play().catch(() => {});
+  playAudio(takSound);
+}
+
+function playClick() {
+  playAudio(clickSound);
+}
+
+function playMagic() {
+  playAudio(magicSound);
+}
+
+function playAudio(audio) {
+  if (!audio) return;
+
+  try {
+    audio.currentTime = 0;
+
+    const playback = audio.play();
+
+    if (playback && typeof playback.catch === "function") {
+      playback.catch(error => {
+        console.warn("تعذر تشغيل الصوت:", error);
+      });
+    }
+  } catch (error) {
+    console.warn("حدث خطأ أثناء تشغيل الصوت:", error);
+  }
 }
 
 // ===================================
@@ -181,7 +256,7 @@ function escapeHtml(text) {
 // ===================================
 
 function setStarStudent() {
-  const starStudent = document.getElementById("starStudent");
+  const starStudent = getPageElement("starStudent");
 
   if (starStudent) {
     starStudent.textContent = "سيتم تحديده لاحقًا";
@@ -189,13 +264,8 @@ function setStarStudent() {
 }
 
 // ===================================
-// الأصوات عند الضغط على الأزرار
+// إعداد أصوات الصفحة
 // ===================================
-
-function playClick() {
-  clickSound.currentTime = 0;
-  clickSound.play().catch(() => {});
-}
 
 function setupPageSounds() {
   setStarStudent();
@@ -214,10 +284,7 @@ function setupPageSounds() {
 
   if (title) {
     title.addEventListener("click", () => {
-      titleSound.currentTime = 0;
-      titleSound.play().catch((error) => {
-        console.warn("تعذر تشغيل صوت العنوان:", error);
-      });
+      playAudio(titleSound);
     });
   }
 }
@@ -232,9 +299,18 @@ window.clearStudentSession = clearStudentSession;
 window.refreshRewards = refreshRewards;
 window.playSuccess = playSuccess;
 window.playError = playError;
+window.playClick = playClick;
+window.playMagic = playMagic;
+
+// ===================================
+// تشغيل إعدادات الصفحة
+// ===================================
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", setupPageSounds);
+  document.addEventListener(
+    "DOMContentLoaded",
+    setupPageSounds
+  );
 } else {
   setupPageSounds();
 }
