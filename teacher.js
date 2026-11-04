@@ -1,1355 +1,850 @@
-"use strict";
 
-(() => {
-  // منع تحميل الكود مرتين
-  if (window.__najoomTeacherJSLoaded) return;
-  window.__najoomTeacherJSLoaded = true;
+/* =========================================================
+   نجوم صفي - teacher.js
+   Firebase Compat SDK
+   المسارات:
+   teachers/{teacherId}/students
+   teachers/{teacherId}/rewards
+   teachers/{teacherId}/rewardRequests
+   studentCodeIndex/{code}
+   ========================================================= */
 
-  const auth = window.teacherAuth;
-  const db = window.teacherDB;
+const db = firebase.firestore();
+const auth = firebase.auth();
 
-  if (!auth || !db) {
-    console.error(
-      "تعذر تهيئة Firebase الخاص بالمعلمات. راجعي teacher-firebase.js وترتيب ملفات script."
-    );
+let currentTeacher = null;
+let studentsCache = [];
+let rewardsCache = [];
+let requestsCache = [];
+let editingStudentId = null;
+
+/* -------------------- المسارات -------------------- */
+
+function teacherDoc() {
+  if (!currentTeacher) {
+    throw new Error("يجب تسجيل الدخول أولاً.");
+  }
+
+  return db.collection("teachers").doc(currentTeacher.uid);
+}
+
+function studentsCollection() {
+  return teacherDoc().collection("students");
+}
+
+function rewardsCollection() {
+  return teacherDoc().collection("rewards");
+}
+
+function requestsCollection() {
+  return teacherDoc().collection("rewardRequests");
+}
+
+function studentCodeIndexCollection() {
+  return db.collection("studentCodeIndex");
+}
+
+/* -------------------- أدوات مساعدة -------------------- */
+
+function getElement(...ids) {
+  for (const id of ids) {
+    const element = document.getElementById(id);
+    if (element) return element;
+  }
+  return null;
+}
+
+function getValue(...ids) {
+  const element = getElement(...ids);
+  return element ? element.value.trim() : "";
+}
+
+function setValue(value, ...ids) {
+  const element = getElement(...ids);
+  if (element) element.value = value ?? "";
+}
+
+function showMessage(message, type = "info") {
+  const element = getElement(
+    "message",
+    "statusMessage",
+    "teacherMessage",
+    "alertMessage"
+  );
+
+  if (element) {
+    element.textContent = message;
+    element.dataset.type = type;
+    element.style.display = "block";
+  } else {
+    alert(message);
+  }
+}
+
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  })[char]);
+}
+
+function timestampNow() {
+  return firebase.firestore.FieldValue.serverTimestamp();
+}
+
+function getErrorMessage(error) {
+  if (error?.code === "permission-denied") {
+    return "لا توجد صلاحية لتنفيذ العملية. تحققي من قواعد Firestore.";
+  }
+
+  if (error?.code === "auth/email-already-in-use") {
+    return "البريد الإلكتروني مستخدم مسبقًا.";
+  }
+
+  if (error?.code === "auth/invalid-credential") {
+    return "بيانات تسجيل الدخول غير صحيحة.";
+  }
+
+  return error?.message || "حدث خطأ غير متوقع.";
+}
+
+function requireTeacher() {
+  if (!currentTeacher) {
+    throw new Error("انتهت الجلسة أو لم يتم تسجيل الدخول.");
+  }
+}
+
+/* -------------------- تسجيل الدخول -------------------- */
+
+auth.onAuthStateChanged(async user => {
+  currentTeacher = user || null;
+
+  const loginPanel = getElement("loginPanel", "loginSection", "loginBox");
+  const dashboard = getElement(
+    "teacherDashboard",
+    "dashboard",
+    "controlPanel"
+  );
+
+  if (user) {
+    if (loginPanel) loginPanel.style.display = "none";
+    if (dashboard) dashboard.style.display = "block";
+
+    await loadStudents();
+    await loadRewards();
+    await loadRewardRequests();
+  } else {
+    if (loginPanel) loginPanel.style.display = "block";
+    if (dashboard) dashboard.style.display = "none";
+  }
+});
+
+async function teacherLogin() {
+  const email = getValue("teacherEmail", "loginEmail", "email");
+  const password = getValue("teacherPassword", "loginPassword", "password");
+
+  if (!email || !password) {
+    showMessage("أدخلي البريد الإلكتروني وكلمة المرور.", "error");
     return;
   }
 
-  const $ = (id) => document.getElementById(id);
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+    showMessage("تم تسجيل الدخول بنجاح.", "success");
+  } catch (error) {
+    showMessage(getErrorMessage(error), "error");
+  }
+}
 
-  let currentTeacher = null;
-  let teacherProfile = null;
+async function teacherRegister() {
+  const email = getValue("teacherEmail", "registerEmail", "email");
+  const password = getValue(
+    "teacherPassword",
+    "registerPassword",
+    "password"
+  );
+  const teacherName = getValue(
+    "teacherName",
+    "registerName",
+    "name"
+  );
+  const schoolName = getValue("schoolName", "registerSchool");
 
-  let activeClass = "";
-  let activeSection = "";
-
-  let studentsCache = [];
-  let rewardsCache = [];
-  let requestsCache = [];
-
-  let editingStudentId = null;
-  let editingRewardId = null;
-  let busy = false;
-  let dashboardInitializedFor = null;
-
-  const sectionsFallback = ["1", "2", "3", "4"];
-
-  // --------------------------------------------------
-  // رسائل وعناصر الواجهة
-  // --------------------------------------------------
-
-  function setText(id, value) {
-    const element = $(id);
-    if (element) element.textContent = value ?? "";
+  if (!email || !password) {
+    showMessage("أدخلي البريد الإلكتروني وكلمة المرور.", "error");
+    return;
   }
 
-  function setStatus(id, message, type = "") {
-    const element = $(id);
-    if (!element) return;
-
-    element.textContent = message;
-    element.dataset.type = type;
+  if (password.length < 6) {
+    showMessage("يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.", "error");
+    return;
   }
 
-  function showElement(id, visible, display = "") {
-    const element = $(id);
-    if (!element) return;
-
-    element.style.display = visible ? (display || "") : "none";
-  }
-
-  function showLoginView() {
-    showElement("loginBox", true, "block");
-    showElement("teacherRegistrationBox", false);
-    showElement("dashboard", false);
-  }
-
-  function showRegistrationView() {
-    showElement("loginBox", false);
-    showElement("teacherRegistrationBox", true, "block");
-    showElement("dashboard", false);
-    setStatus("registrationError", "");
-  }
-
-  function showDashboardView() {
-    showElement("loginBox", false);
-    showElement("teacherRegistrationBox", false);
-    showElement("dashboard", true);
-  }
-
-  function getErrorMessage(error) {
-    const code = error?.code || "";
-
-    const messages = {
-      "auth/email-already-in-use":
-        "هذا البريد الإلكتروني مسجل مسبقًا. حاولي تسجيل الدخول.",
-      "auth/invalid-email":
-        "البريد الإلكتروني غير صحيح.",
-      "auth/weak-password":
-        "كلمة المرور ضعيفة. استخدمي 8 أحرف على الأقل.",
-      "auth/invalid-credential":
-        "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
-      "auth/user-not-found":
-        "لا يوجد حساب بهذا البريد الإلكتروني.",
-      "auth/wrong-password":
-        "كلمة المرور غير صحيحة.",
-      "auth/too-many-requests":
-        "تمت محاولات كثيرة. حاولي مرة أخرى لاحقًا.",
-      "auth/network-request-failed":
-        "تعذر الاتصال بالإنترنت. تحققي من اتصالك.",
-      "permission-denied":
-        "لا توجد صلاحية للوصول إلى البيانات. راجعي قواعد Firestore في مشروع المعلمات.",
-      "firestore/permission-denied":
-        "لا توجد صلاحية للوصول إلى البيانات. راجعي قواعد Firestore في مشروع المعلمات."
-    };
-
-    return messages[code] ||
-      error?.message ||
-      "حدث خطأ غير متوقع. حاولي مرة أخرى.";
-  }
-
-  function escapeHTML(value) {
-    return String(value ?? "").replace(/[&<>"']/g, (character) => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;"
-    })[character]);
-  }
-
-  function toNumber(value, fallback = 0) {
-    const number = Number(value);
-    return Number.isFinite(number) ? number : fallback;
-  }
-
-  function normalizeString(value) {
-    return String(value ?? "").trim();
-  }
-
-  function formatDate(value) {
-    if (!value) return "—";
-
-    let date;
-
-    if (typeof value.toDate === "function") {
-      date = value.toDate();
-    } else {
-      date = new Date(value);
-    }
-
-    if (Number.isNaN(date.getTime())) return "—";
-
-    return date.toLocaleDateString("ar-OM");
-  }
-
-  function normalizeSection(value) {
-    const digits = {
-      "٠": "0",
-      "١": "1",
-      "٢": "2",
-      "٣": "3",
-      "٤": "4",
-      "٥": "5",
-      "٦": "6",
-      "٧": "7",
-      "٨": "8",
-      "٩": "9"
-    };
-
-    return String(value ?? "").replace(/[٠-٩]/g, (digit) => digits[digit]);
-  }
-
-  function displaySection(value) {
-    const digits = {
-      "0": "٠",
-      "1": "١",
-      "2": "٢",
-      "3": "٣",
-      "4": "٤",
-      "5": "٥",
-      "6": "٦",
-      "7": "٧",
-      "8": "٨",
-      "9": "٩"
-    };
-
-    return String(value ?? "").replace(/[0-9]/g, (digit) => digits[digit]);
-  }
-
-  function sortArabic(values) {
-    return [...values].sort((a, b) =>
-      String(a).localeCompare(String(b), "ar")
+  try {
+    const credential = await auth.createUserWithEmailAndPassword(
+      email,
+      password
     );
-  }
 
-  // --------------------------------------------------
-  // مسارات البيانات: كل معلمة داخل حسابها فقط
-  // --------------------------------------------------
-
-  function teacherDoc() {
-    if (!currentTeacher) {
-      throw new Error("لا يوجد حساب معلمة مسجل الدخول.");
-    }
-
-    return db.collection("teachers").doc(currentTeacher.uid);
-  }
-
-  function studentsCollection() {
-    return teacherDoc().collection("students");
-  }
-
-  function rewardsCollection() {
-    return teacherDoc().collection("rewards");
-  }
-
-  function requestsCollection() {
-    return teacherDoc().collection("rewardRequests");
-  }
-
-  function getTeacherClasses() {
-    const classes = Array.isArray(teacherProfile?.classes)
-      ? teacherProfile.classes
-      : [];
-
-    return classes
-      .filter((item) => item && typeof item === "object" && item.name)
-      .map((item) => ({
-        name: String(item.name),
-        sections: Array.isArray(item.sections)
-          ? [...new Set(item.sections.map(normalizeSection))]
-          : []
-      }));
-  }
-
-  function findClass(className) {
-    return getTeacherClasses().find((item) => item.name === className);
-  }
-
-  function getSectionsForClass(className) {
-    const classInfo = findClass(className);
-    const sections = classInfo?.sections?.length
-      ? classInfo.sections
-      : sectionsFallback;
-
-    return [...sections].sort((a, b) =>
-      Number(a) - Number(b)
-    );
-  }
-
-  function getVisibleStudents() {
-    return studentsCache.filter((student) =>
-      student.className === activeClass &&
-      normalizeSection(student.section) === activeSection
-    );
-  }
-
-  function getVisibleRewards() {
-    return rewardsCache.filter((reward) =>
-      reward.className === activeClass &&
-      normalizeSection(reward.section) === activeSection
-    );
-  }
-
-  function getVisibleRequests() {
-    return requestsCache.filter((request) =>
-      request.className === activeClass &&
-      normalizeSection(request.section) === activeSection
-    );
-  }
-
-  // --------------------------------------------------
-  // الصف والشعبة
-  // --------------------------------------------------
-
-  function populateClassSelector() {
-    const select = $("activeClassSelect");
-    if (!select) return;
-
-    const classes = getTeacherClasses();
-
-    select.innerHTML = "";
-
-    if (!classes.length) {
-      select.innerHTML = '<option value="">لا توجد صفوف مسجلة</option>';
-      activeClass = "";
-      activeSection = "";
-      populateSectionSelector();
-      updateSelectedClassInfo();
-      return;
-    }
-
-    classes.forEach((classInfo) => {
-      const option = document.createElement("option");
-      option.value = classInfo.name;
-      option.textContent = classInfo.name;
-      select.appendChild(option);
+    await db.collection("teachers").doc(credential.user.uid).set({
+      teacherId: credential.user.uid,
+      name: teacherName,
+      email,
+      schoolName,
+      createdAt: timestampNow()
     });
 
-    if (!classes.some((item) => item.name === activeClass)) {
-      activeClass = classes[0].name;
-    }
+    currentTeacher = credential.user;
+    showMessage("تم إنشاء حساب المعلمة بنجاح.", "success");
+  } catch (error) {
+    showMessage(getErrorMessage(error), "error");
+  }
+}
 
-    select.value = activeClass;
-    populateSectionSelector();
-    updateSelectedClassInfo();
+async function teacherLogout() {
+  try {
+    await auth.signOut();
+    currentTeacher = null;
+    studentsCache = [];
+    rewardsCache = [];
+    requestsCache = [];
+    showMessage("تم تسجيل الخروج.", "success");
+  } catch (error) {
+    showMessage(getErrorMessage(error), "error");
+  }
+}
+
+/* -------------------- الطلاب والطالبات -------------------- */
+
+async function loadStudents() {
+  try {
+    requireTeacher();
+
+    const snapshot = await studentsCollection()
+      .orderBy("name")
+      .get();
+
+    studentsCache = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    renderStudents();
+    return studentsCache;
+  } catch (error) {
+    showMessage(getErrorMessage(error), "error");
+    return [];
+  }
+}
+
+function renderStudents() {
+  const container = getElement(
+    "studentsList",
+    "studentsContainer",
+    "studentsTableBody",
+    "studentsTable"
+  );
+
+  if (!container) return;
+
+  if (!studentsCache.length) {
+    container.innerHTML = "<p>لا توجد طالبات مسجلات حتى الآن.</p>";
+    return;
   }
 
-  function populateSectionSelector() {
-    const select = $("activeSectionSelect");
-    if (!select) return;
+  container.innerHTML = studentsCache.map(student => `
+    <div class="student-card" data-student-id="${escapeHTML(student.id)}">
+      <strong>${escapeHTML(student.name)}</strong>
+      <div>الرمز: ${escapeHTML(student.code)}</div>
+      <div>الصف: ${escapeHTML(student.className || "")}</div>
+      <div>الشعبة: ${escapeHTML(student.section || "")}</div>
+      <div>النقاط: ${Number(student.points) || 0}</div>
+      <div>${escapeHTML(student.message || "")}</div>
 
-    const sections = getSectionsForClass(activeClass);
-    select.innerHTML = "";
+      <button type="button"
+        onclick="editStudent('${escapeHTML(student.id)}')">
+        تعديل
+      </button>
 
-    sections.forEach((section) => {
-      const option = document.createElement("option");
-      option.value = normalizeSection(section);
-      option.textContent = displaySection(section);
-      select.appendChild(option);
-    });
+      <button type="button"
+        onclick="deleteStudent('${escapeHTML(student.id)}')">
+        حذف
+      </button>
+    </div>
+  `).join("");
+}
 
-    if (!sections.some((section) =>
-      normalizeSection(section) === activeSection
-    )) {
-      activeSection = normalizeSection(sections[0] ?? "");
-    }
+function getStudentFormData() {
+  const name = getValue("studentName", "name");
+  const code = getValue("studentCode", "code");
+  const className = getValue("studentClass", "className", "grade");
+  const section = getValue("studentSection", "section");
+  const pointsValue = getValue("studentPoints", "points");
+  const message = getValue("studentMessage", "message");
 
-    select.value = activeSection;
-    updateSelectedClassInfo();
+  if (!name || !code) {
+    throw new Error("أدخلي اسم الطالبة ورمزها.");
   }
 
-  function updateSelectedClassInfo() {
-    setText("selectedClass", activeClass || "—");
-    setText("selectedSection", activeSection
-      ? displaySection(activeSection)
-      : "—");
-
-    const classNameInput = $("className");
-    if (classNameInput) classNameInput.value = activeClass;
-
-    setText("subjectName", teacherProfile?.subject || "");
-
-    const subjectInput = $("subjectName");
-    if (subjectInput) subjectInput.value = teacherProfile?.subject || "";
+  if (code.includes("/")) {
+    throw new Error("لا يمكن أن يحتوي الرمز على علامة /.");
   }
 
-  // --------------------------------------------------
-  // تسجيل المعلمة وإنشاء الحساب
-  // --------------------------------------------------
+  if (code.length > 100) {
+    throw new Error("الرمز طويل جدًا.");
+  }
 
-  function readRegistrationClasses() {
-    const rows = document.querySelectorAll(".registration-class-row");
-    const classes = [];
-    const usedClassNames = new Set();
+  const points = pointsValue === ""
+    ? 0
+    : Number(pointsValue);
 
-    for (const row of rows) {
-      const className = normalizeString(
-        row.querySelector(".register-class-select")?.value
-      );
+  if (!Number.isFinite(points) || points < 0) {
+    throw new Error("أدخلي عدد نقاط صحيحًا.");
+  }
 
-      const sections = [...row.querySelectorAll(
-        'input[type="checkbox"]:checked'
-      )].map((checkbox) => normalizeSection(checkbox.value));
+  return {
+    name,
+    code,
+    className,
+    section,
+    points,
+    message
+  };
+}
 
-      if (!className) {
-        throw new Error("اختاري الصف في كل صف من نموذج التسجيل.");
+/*
+  إضافة طالبة أو تعديلها.
+  تتم قراءة فهرس الرمز وبيانات الطالبة داخل معاملة واحدة،
+  ثم حفظ السجل والفهرس معًا لمنع تكرار الرمز.
+*/
+async function saveStudent() {
+  try {
+    requireTeacher();
+
+    const data = getStudentFormData();
+    const teacherId = currentTeacher.uid;
+
+    const studentRef = editingStudentId
+      ? studentsCollection().doc(editingStudentId)
+      : studentsCollection().doc();
+
+    const newIndexRef = studentCodeIndexCollection().doc(data.code);
+
+    await db.runTransaction(async transaction => {
+      // يجب إجراء جميع القراءات قبل أي كتابة.
+      const studentSnapshot = editingStudentId
+        ? await transaction.get(studentRef)
+        : null;
+
+      if (editingStudentId && !studentSnapshot.exists) {
+        throw new Error("الطالبة المطلوب تعديلها غير موجودة.");
       }
 
-      if (!sections.length) {
-        throw new Error(
-          `اختاري شعبة واحدة على الأقل للصف: ${className}.`
-        );
+      const newIndexSnapshot = await transaction.get(newIndexRef);
+
+      let oldCode = null;
+      let oldIndexRef = null;
+      let oldIndexSnapshot = null;
+
+      if (studentSnapshot && studentSnapshot.exists) {
+        oldCode = studentSnapshot.data().code;
+
+        if (oldCode && oldCode !== data.code) {
+          oldIndexRef = studentCodeIndexCollection().doc(oldCode);
+          oldIndexSnapshot = await transaction.get(oldIndexRef);
+        }
       }
 
-      if (usedClassNames.has(className)) {
-        throw new Error(`لقد أضفتِ الصف نفسه أكثر من مرة: ${className}.`);
+      if (newIndexSnapshot.exists) {
+        const indexData = newIndexSnapshot.data();
+
+        const belongsToThisStudent =
+          indexData.teacherId === teacherId &&
+          indexData.studentId === studentRef.id;
+
+        if (!belongsToThisStudent) {
+          throw new Error(
+            "هذا الرمز مستخدم بالفعل لطالبة أخرى. اختاري رمزًا مختلفًا."
+          );
+        }
       }
 
-      usedClassNames.add(className);
+      const existingData = studentSnapshot?.exists
+        ? studentSnapshot.data()
+        : {};
 
-      classes.push({
-        name: className,
-        sections: [...new Set(sections)]
-      });
-    }
-
-    if (!classes.length) {
-      throw new Error("أضيفي صفًا واحدًا على الأقل.");
-    }
-
-    return classes;
-  }
-
-  async function registerTeacher(event) {
-    event.preventDefault();
-
-    if (busy) return;
-
-    const name = normalizeString($("registerTeacherName")?.value);
-    const school = normalizeString($("registerSchoolName")?.value);
-    const subject = normalizeString($("registerSubjectName")?.value);
-    const email = normalizeString($("registerTeacherEmail")?.value);
-    const password = $("registerTeacherPassword")?.value || "";
-    const confirmPassword = $("confirmTeacherPassword")?.value || "";
-
-    setStatus("registrationError", "");
-
-    if (!name || !school || !subject || !email) {
-      setStatus("registrationError", "أكملي جميع البيانات المطلوبة.");
-      return;
-    }
-
-    if (password.length < 8) {
-      setStatus("registrationError", "كلمة المرور يجب أن تتكون من 8 أحرف على الأقل.");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setStatus("registrationError", "كلمتا المرور غير متطابقتين.");
-      return;
-    }
-
-    let classes;
-
-    try {
-      classes = readRegistrationClasses();
-    } catch (error) {
-      setStatus("registrationError", error.message);
-      return;
-    }
-
-    busy = true;
-    const button = $("registerTeacherButton");
-    if (button) button.disabled = true;
-
-    let createdUser = null;
-
-    try {
-      const credential = await auth.createUserWithEmailAndPassword(
-        email,
-        password
-      );
-
-      createdUser = credential.user;
-
-      await createdUser.updateProfile({ displayName: name });
-
-      const profile = {
-        uid: createdUser.uid,
-        name,
-        school,
-        subject,
-        email: createdUser.email || email,
-        classes,
-        active: true,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      const studentData = {
+        ...data,
+        teacherId,
+        updatedAt: timestampNow(),
+        createdAt: existingData.createdAt || timestampNow()
       };
 
-      await db.collection("teachers")
-        .doc(createdUser.uid)
-        .set(profile);
+      transaction.set(studentRef, studentData, { merge: true });
 
-      teacherProfile = profile;
-      currentTeacher = createdUser;
+      transaction.set(newIndexRef, {
+        code: data.code,
+        teacherId,
+        studentId: studentRef.id,
+        className: data.className,
+        section: data.section,
+        updatedAt: timestampNow(),
+        createdAt: newIndexSnapshot.exists
+          ? (newIndexSnapshot.data().createdAt || timestampNow())
+          : timestampNow()
+      }, { merge: true });
 
-      setStatus("registrationError", "تم إنشاء الحساب بنجاح.", "success");
+      // حذف الفهرس القديم عند تغيير الرمز،
+      // بشرط أن يكون مملوكًا للطالبة نفسها.
+      if (
+        oldIndexRef &&
+        oldIndexSnapshot &&
+        oldIndexSnapshot.exists
+      ) {
+        const oldIndexData = oldIndexSnapshot.data();
 
-      await initializeDashboard(createdUser);
-    } catch (error) {
-      console.error("Teacher registration error:", error);
-
-      if (createdUser) {
-        setStatus(
-          "registrationError",
-          "تم إنشاء حساب الدخول، لكن تعذر حفظ ملف المعلمة. لا تعيدي التسجيل مباشرة؛ تحققي من قواعد Firestore في مشروع read-d879d. يمكنك تسجيل الدخول بعد إصلاح الصلاحيات."
-        );
-      } else {
-        setStatus("registrationError", getErrorMessage(error));
+        if (
+          oldIndexData.teacherId === teacherId &&
+          oldIndexData.studentId === studentRef.id
+        ) {
+          transaction.delete(oldIndexRef);
+        }
       }
-    } finally {
-      busy = false;
-      if (button) button.disabled = false;
-    }
-  }
+    });
 
-  async function loginTeacher(event) {
-    event.preventDefault();
-
-    if (busy) return;
-
-    const email = normalizeString($("teacherEmail")?.value);
-    const password = $("teacherPassword")?.value || "";
-
-    if (!email || !password) {
-      setStatus("loginError", "أدخلي البريد الإلكتروني وكلمة المرور.");
-      return;
-    }
-
-    busy = true;
-    setStatus("loginError", "");
-
-    const button = $("teacherLoginButton");
-    if (button) button.disabled = true;
-
-    try {
-      await auth.signInWithEmailAndPassword(email, password);
-    } catch (error) {
-      console.error("Teacher login error:", error);
-      setStatus("loginError", getErrorMessage(error));
-    } finally {
-      busy = false;
-      if (button) button.disabled = false;
-    }
-  }
-
-  async function resetTeacherPassword() {
-    const email = normalizeString($("teacherEmail")?.value);
-
-    if (!email) {
-      setStatus(
-        "loginError",
-        "أدخلي بريدك الإلكتروني أولًا، ثم اضغطي «نسيت كلمة المرور؟»."
-      );
-      return;
-    }
-
-    try {
-      await auth.sendPasswordResetEmail(email);
-      setStatus(
-        "loginError",
-        "إذا كان البريد مسجلًا، فستصلك رسالة لإعادة تعيين كلمة المرور.",
-        "success"
-      );
-    } catch (error) {
-      console.error("Password reset error:", error);
-      setStatus("loginError", getErrorMessage(error));
-    }
-  }
-
-  async function logoutTeacher() {
-    try {
-      await auth.signOut();
-    } catch (error) {
-      console.error("Logout error:", error);
-      alert(getErrorMessage(error));
-    }
-  }
-
-  // --------------------------------------------------
-  // تحميل لوحة التحكم
-  // --------------------------------------------------
-
-  async function loadTeacherProfile(user) {
-    const snapshot = await db.collection("teachers").doc(user.uid).get();
-
-    if (!snapshot.exists) {
-      throw new Error(
-        "حساب الدخول موجود، لكن ملف المعلمة غير موجود في قاعدة البيانات. راجعي تسجيل الحساب وقواعد Firestore."
-      );
-    }
-
-    const data = snapshot.data() || {};
-
-    return {
-      ...data,
-      uid: user.uid,
-      name: data.name || user.displayName || "المعلمة",
-      school: data.school || "",
-      subject: data.subject || "",
-      classes: Array.isArray(data.classes) ? data.classes : []
-    };
-  }
-
-  async function initializeDashboard(user) {
-    if (!user) return;
-
-    if (dashboardInitializedFor === user.uid && teacherProfile) {
-      showDashboardView();
-      return;
-    }
-
-    try {
-      currentTeacher = user;
-      teacherProfile = await loadTeacherProfile(user);
-
-      setText("teacherName", teacherProfile.name);
-      setText("schoolName", teacherProfile.school);
-
-      activeClass = "";
-      activeSection = "";
-
-      populateClassSelector();
-      showDashboardView();
-
-      dashboardInitializedFor = user.uid;
-
-      await refreshDashboardData();
-    } catch (error) {
-      console.error("Dashboard initialization error:", error);
-
-      showDashboardView();
-      setStatus("studentStatus", getErrorMessage(error));
-
-      if (!teacherProfile) {
-        setText("teacherName", user.displayName || "المعلمة");
-      }
-    }
-  }
-
-  // --------------------------------------------------
-  // تحميل بيانات المعلمة
-  // --------------------------------------------------
-
-  async function refreshDashboardData() {
-    if (!currentTeacher || !teacherProfile) return;
-
-    try {
-      const [studentsSnapshot, rewardsSnapshot, requestsSnapshot] =
-        await Promise.all([
-          studentsCollection().get(),
-          rewardsCollection().get(),
-          requestsCollection().get()
-        ]);
-
-      studentsCache = studentsSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-
-      rewardsCache = rewardsSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-
-      requestsCache = requestsSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-
-      renderStudents();
-      renderRewards();
-      renderRequests();
-
-      setStatus("studentStatus", "");
-      setStatus("rewardStatus", "");
-    } catch (error) {
-      console.error("Dashboard data loading error:", error);
-      setStatus("studentStatus", getErrorMessage(error));
-    }
-  }
-
-  // --------------------------------------------------
-  // الطلاب
-  // --------------------------------------------------
-
-  function resetStudentForm() {
     editingStudentId = null;
 
-    if ($("studentName")) $("studentName").value = "";
-    if ($("studentCode")) $("studentCode").value = "";
-    if ($("studentPoints")) $("studentPoints").value = "0";
-    if ($("studentMessage")) $("studentMessage").value = "";
+    const form = getElement("studentForm");
+    if (form) form.reset();
 
-    setText("studentSaveButton", "➕ إضافة الطالب");
-    showElement("cancelStudentButton", false);
-  }
+    await loadStudents();
 
-  function renderStudents() {
-    const container = $("studentsList");
-    if (!container) return;
-
-    const students = getVisibleStudents();
-
-    if (!activeClass || !activeSection) {
-      container.textContent = "اختاري الصف والشعبة لعرض الطلاب.";
-      return;
-    }
-
-    if (!students.length) {
-      container.textContent = "لا يوجد طلاب في هذا الصف والشعبة حتى الآن.";
-      return;
-    }
-
-    container.innerHTML = students.map((student) => `
-      <div class="student-card" data-student-id="${escapeHTML(student.id)}">
-        <h3>${escapeHTML(student.name || "طالب دون اسم")}</h3>
-        <p>الرمز: ${escapeHTML(student.code || "—")}</p>
-        <p>النقاط: <strong>${toNumber(student.points)}</strong></p>
-        <p>التعليق: ${escapeHTML(student.message || "—")}</p>
-        <p>الصف: ${escapeHTML(student.className || "")}</p>
-        <p>الشعبة: ${escapeHTML(displaySection(student.section || ""))}</p>
-
-        <div class="student-actions">
-          <button type="button" data-action="edit-student"
-            data-id="${escapeHTML(student.id)}">✏️ تعديل</button>
-
-          <button type="button" data-action="add-point"
-            data-id="${escapeHTML(student.id)}">➕ نقطة</button>
-
-          <button type="button" data-action="subtract-point"
-            data-id="${escapeHTML(student.id)}">➖ نقطة</button>
-
-          <button type="button" data-action="delete-student"
-            data-id="${escapeHTML(student.id)}">🗑️ حذف</button>
-        </div>
-      </div>
-    `).join("");
-  }
-
-  async function saveStudent() {
-    if (!currentTeacher || !activeClass || !activeSection) {
-      setStatus("studentStatus", "اختاري الصف والشعبة أولًا.");
-      return;
-    }
-
-    const name = normalizeString($("studentName")?.value);
-    const code = normalizeString($("studentCode")?.value);
-    const points = toNumber($("studentPoints")?.value, NaN);
-    const message = normalizeString($("studentMessage")?.value);
-
-    if (!name || !code) {
-      setStatus("studentStatus", "أدخلي اسم الطالب ورمزه.");
-      return;
-    }
-
-    if (!Number.isFinite(points) || points < 0) {
-      setStatus("studentStatus", "أدخلي عدد نقاط صحيحًا لا يقل عن صفر.");
-      return;
-    }
-
-    if (!Number.isInteger(points)) {
-      setStatus("studentStatus", "النقاط يجب أن تكون عددًا صحيحًا.");
-      return;
-    }
-
-    const duplicate = studentsCache.find((student) =>
-      student.code === code &&
-      student.className === activeClass &&
-      normalizeSection(student.section) === activeSection &&
-      student.id !== editingStudentId
+    showMessage(
+      "تم حفظ بيانات الطالبة ورمزها بنجاح.",
+      "success"
     );
+  } catch (error) {
+    showMessage(getErrorMessage(error), "error");
+  }
+}
 
-    if (duplicate) {
-      setStatus("studentStatus", "هذا الرمز مستخدم بالفعل في الصف والشعبة المختارين.");
-      return;
-    }
+function editStudent(studentId) {
+  const student = studentsCache.find(item => item.id === studentId);
 
-    const data = {
-      name,
-      code,
-      points,
-      message,
-      className: activeClass,
-      section: activeSection,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
+  if (!student) {
+    showMessage("لم يتم العثور على الطالبة.", "error");
+    return;
+  }
 
-    try {
-      if (editingStudentId) {
-        await studentsCollection().doc(editingStudentId).update(data);
-        setStatus("studentStatus", "تم تحديث بيانات الطالب.", "success");
-      } else {
-        data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-        await studentsCollection().add(data);
-        setStatus("studentStatus", "تمت إضافة الطالب بنجاح.", "success");
+  editingStudentId = studentId;
+
+  setValue(student.name, "studentName", "name");
+  setValue(student.code, "studentCode", "code");
+  setValue(student.className, "studentClass", "className", "grade");
+  setValue(student.section, "studentSection", "section");
+  setValue(student.points, "studentPoints", "points");
+  setValue(student.message, "studentMessage", "message");
+
+  const submitButton = getElement("saveStudentButton", "studentSubmit");
+  if (submitButton) submitButton.textContent = "حفظ التعديلات";
+
+  const form = getElement("studentForm");
+  if (form) {
+    form.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+}
+
+function cancelStudentEdit() {
+  editingStudentId = null;
+
+  const form = getElement("studentForm");
+  if (form) form.reset();
+
+  const submitButton = getElement("saveStudentButton", "studentSubmit");
+  if (submitButton) submitButton.textContent = "إضافة الطالبة";
+}
+
+async function deleteStudent(studentId) {
+  if (!confirm("هل تريدين حذف هذه الطالبة؟")) return;
+
+  try {
+    requireTeacher();
+
+    const studentRef = studentsCollection().doc(studentId);
+
+    await db.runTransaction(async transaction => {
+      const studentSnapshot = await transaction.get(studentRef);
+
+      if (!studentSnapshot.exists) {
+        throw new Error("الطالبة غير موجودة.");
       }
 
-      resetStudentForm();
-      await refreshDashboardData();
-    } catch (error) {
-      console.error("Save student error:", error);
-      setStatus("studentStatus", getErrorMessage(error));
+      const studentData = studentSnapshot.data();
+      const code = studentData.code;
+
+      let indexRef = null;
+      let indexSnapshot = null;
+
+      if (code) {
+        indexRef = studentCodeIndexCollection().doc(code);
+        indexSnapshot = await transaction.get(indexRef);
+      }
+
+      if (
+        indexRef &&
+        indexSnapshot &&
+        indexSnapshot.exists
+      ) {
+        const indexData = indexSnapshot.data();
+
+        if (
+          indexData.teacherId === currentTeacher.uid &&
+          indexData.studentId === studentId
+        ) {
+          transaction.delete(indexRef);
+        }
+      }
+
+      transaction.delete(studentRef);
+    });
+
+    if (editingStudentId === studentId) {
+      cancelStudentEdit();
     }
+
+    await loadStudents();
+    showMessage("تم حذف الطالبة.", "success");
+  } catch (error) {
+    showMessage(getErrorMessage(error), "error");
+  }
+}
+
+/* -------------------- إدارة المكافآت -------------------- */
+
+async function loadRewards() {
+  try {
+    requireTeacher();
+
+    const snapshot = await rewardsCollection().get();
+
+    rewardsCache = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    renderRewards();
+    return rewardsCache;
+  } catch (error) {
+    showMessage(getErrorMessage(error), "error");
+    return [];
+  }
+}
+
+function renderRewards() {
+  const container = getElement(
+    "rewardsList",
+    "rewardsContainer",
+    "rewardsTableBody"
+  );
+
+  if (!container) return;
+
+  if (!rewardsCache.length) {
+    container.innerHTML = "<p>لا توجد مكافآت مضافة.</p>";
+    return;
   }
 
-  function editStudent(studentId) {
-    const student = studentsCache.find((item) => item.id === studentId);
-    if (!student) return;
+  container.innerHTML = rewardsCache.map(reward => `
+    <div class="reward-card">
+      <span>${escapeHTML(reward.icon || "🎁")}</span>
+      <strong>${escapeHTML(reward.name || "")}</strong>
+      <div>النقاط المطلوبة: ${Number(reward.price) || 0}</div>
+      <div>${escapeHTML(reward.description || "")}</div>
+      <button type="button"
+        onclick="deleteReward('${escapeHTML(reward.id)}')">
+        حذف المكافأة
+      </button>
+    </div>
+  `).join("");
+}
 
-    if (student.className !== activeClass ||
-        normalizeSection(student.section) !== activeSection) {
-      setStatus("studentStatus", "لا يمكن تعديل طالب من صف أو شعبة أخرى.");
-      return;
-    }
+async function saveReward() {
+  try {
+    requireTeacher();
 
-    editingStudentId = studentId;
+    const name = getValue("rewardName", "newRewardName");
+    const priceValue = getValue("rewardPrice", "newRewardPrice");
+    const icon = getValue("rewardIcon", "newRewardIcon") || "🎁";
+    const description = getValue(
+      "rewardDescription",
+      "newRewardDescription"
+    );
 
-    $("studentName").value = student.name || "";
-    $("studentCode").value = student.code || "";
-    $("studentPoints").value = String(toNumber(student.points));
-    $("studentMessage").value = student.message || "";
-
-    setText("studentSaveButton", "💾 حفظ التعديلات");
-    showElement("cancelStudentButton", true, "inline-block");
-
-    $("studentName")?.focus();
-  }
-
-  async function changeStudentPoints(studentId, delta) {
-    const student = studentsCache.find((item) => item.id === studentId);
-    if (!student) return;
-
-    if (student.className !== activeClass ||
-        normalizeSection(student.section) !== activeSection) {
-      setStatus("studentStatus", "الطالب لا ينتمي إلى الصف والشعبة المختارين.");
-      return;
-    }
-
-    const currentPoints = toNumber(student.points);
-
-    if (delta < 0 && currentPoints + delta < 0) {
-      setStatus("studentStatus", "لا يمكن أن تصبح النقاط أقل من صفر.");
-      return;
-    }
-
-    try {
-      await studentsCollection().doc(studentId).update({
-        points: currentPoints + delta,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-
-      setStatus("studentStatus", "تم تحديث نقاط الطالب.", "success");
-      await refreshDashboardData();
-    } catch (error) {
-      console.error("Change points error:", error);
-      setStatus("studentStatus", getErrorMessage(error));
-    }
-  }
-
-  async function deleteStudent(studentId) {
-    const student = studentsCache.find((item) => item.id === studentId);
-    if (!student) return;
-
-    if (student.className !== activeClass ||
-        normalizeSection(student.section) !== activeSection) {
-      setStatus("studentStatus", "الطالب لا ينتمي إلى الصف والشعبة المختارين.");
-      return;
-    }
-
-    if (!confirm(`هل تريدين حذف الطالب «${student.name || ""}»؟`)) return;
-
-    try {
-      await studentsCollection().doc(studentId).delete();
-
-      setStatus(
-        "studentStatus",
-        "تم حذف سجل الطالب. راجعي الطلبات السابقة إذا كانت مرتبطة به.",
-        "success"
-      );
-
-      if (editingStudentId === studentId) resetStudentForm();
-
-      await refreshDashboardData();
-    } catch (error) {
-      console.error("Delete student error:", error);
-      setStatus("studentStatus", getErrorMessage(error));
-    }
-  }
-
-  // --------------------------------------------------
-  // المكافآت
-  // --------------------------------------------------
-
-  function resetRewardForm() {
-    editingRewardId = null;
-
-    if ($("rewardName")) $("rewardName").value = "";
-    if ($("rewardPrice")) $("rewardPrice").value = "";
-    if ($("rewardIcon")) $("rewardIcon").value = "🎁";
-    if ($("rewardDescription")) $("rewardDescription").value = "";
-
-    setText("rewardSaveButton", "➕ إضافة المكافأة");
-    showElement("cancelRewardButton", false);
-  }
-
-  function renderRewards() {
-    const container = $("rewardsManagerList");
-    if (!container) return;
-
-    const rewards = getVisibleRewards();
-
-    if (!rewards.length) {
-      container.textContent = "لا توجد مكافآت في هذا الصف والشعبة حتى الآن.";
-      return;
-    }
-
-    container.innerHTML = rewards.map((reward) => `
-      <div class="reward-card" data-reward-id="${escapeHTML(reward.id)}">
-        <h3>${escapeHTML(reward.icon || "🎁")} ${escapeHTML(reward.name || "مكافأة")}</h3>
-        <p>النقاط المطلوبة: <strong>${toNumber(reward.price)}</strong></p>
-        <p>${escapeHTML(reward.description || "لا يوجد وصف.")}</p>
-
-        <div class="reward-actions">
-          <button type="button" data-action="edit-reward"
-            data-id="${escapeHTML(reward.id)}">✏️ تعديل</button>
-
-          <button type="button" data-action="delete-reward"
-            data-id="${escapeHTML(reward.id)}">🗑️ حذف</button>
-        </div>
-      </div>
-    `).join("");
-  }
-
-  async function saveReward() {
-    if (!currentTeacher || !activeClass || !activeSection) {
-      setStatus("rewardStatus", "اختاري الصف والشعبة أولًا.");
-      return;
-    }
-
-    const name = normalizeString($("rewardName")?.value);
-    const price = toNumber($("rewardPrice")?.value, NaN);
-    const icon = normalizeString($("rewardIcon")?.value) || "🎁";
-    const description = normalizeString($("rewardDescription")?.value);
+    const price = Number(priceValue);
 
     if (!name) {
-      setStatus("rewardStatus", "أدخلي اسم المكافأة.");
-      return;
+      throw new Error("أدخلي اسم المكافأة.");
     }
 
-    if (!Number.isInteger(price) || price < 1) {
-      setStatus("rewardStatus", "أدخلي عدد نقاط صحيحًا أكبر من صفر.");
-      return;
+    if (
+      priceValue === "" ||
+      !Number.isFinite(price) ||
+      price <= 0
+    ) {
+      throw new Error("أدخلي عدد نقاط صحيحًا للمكافأة.");
     }
 
-    const data = {
+    await rewardsCollection().add({
       name,
       price,
       icon,
       description,
-      className: activeClass,
-      section: activeSection,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
+      active: true,
+      teacherId: currentTeacher.uid,
+      createdAt: timestampNow(),
+      updatedAt: timestampNow()
+    });
 
-    try {
-      if (editingRewardId) {
-        await rewardsCollection().doc(editingRewardId).update(data);
-        setStatus("rewardStatus", "تم تحديث المكافأة.", "success");
-      } else {
-        data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-        await rewardsCollection().add(data);
-        setStatus("rewardStatus", "تمت إضافة المكافأة بنجاح.", "success");
+    const form = getElement("rewardForm");
+    if (form) form.reset();
+
+    await loadRewards();
+    showMessage("تمت إضافة المكافأة.", "success");
+  } catch (error) {
+    showMessage(getErrorMessage(error), "error");
+  }
+}
+
+async function deleteReward(rewardId) {
+  if (!confirm("هل تريدين حذف هذه المكافأة؟")) return;
+
+  try {
+    requireTeacher();
+
+    await rewardsCollection().doc(rewardId).delete();
+
+    await loadRewards();
+    showMessage("تم حذف المكافأة.", "success");
+  } catch (error) {
+    showMessage(getErrorMessage(error), "error");
+  }
+}
+
+/* -------------------- طلبات استبدال المكافآت -------------------- */
+
+async function loadRewardRequests() {
+  try {
+    requireTeacher();
+
+    const snapshot = await requestsCollection().get();
+
+    requestsCache = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    renderRewardRequests();
+    return requestsCache;
+  } catch (error) {
+    showMessage(getErrorMessage(error), "error");
+    return [];
+  }
+}
+
+function renderRewardRequests() {
+  const container = getElement(
+    "requestsList",
+    "rewardRequestsList",
+    "requestsContainer",
+    "requestsTableBody"
+  );
+
+  if (!container) return;
+
+  if (!requestsCache.length) {
+    container.innerHTML = "<p>لا توجد طلبات استبدال.</p>";
+    return;
+  }
+
+  container.innerHTML = requestsCache.map(request => `
+    <div class="request-card">
+      <strong>${escapeHTML(request.studentName || "طالبة")}</strong>
+      <div>المكافأة: ${escapeHTML(request.rewardName || "")}</div>
+      <div>النقاط: ${Number(request.price) || 0}</div>
+      <div>الحالة: ${escapeHTML(request.status || "pending")}</div>
+
+      ${
+        request.status === "pending"
+          ? `
+            <button type="button"
+              onclick="processRewardRequest('${escapeHTML(request.id)}','approved')">
+              قبول الطلب
+            </button>
+            <button type="button"
+              onclick="processRewardRequest('${escapeHTML(request.id)}','rejected')">
+              رفض الطلب
+            </button>
+          `
+          : ""
+      }
+    </div>
+  `).join("");
+}
+
+async function processRewardRequest(requestId, newStatus) {
+  if (!["approved", "rejected"].includes(newStatus)) {
+    showMessage("حالة الطلب غير صحيحة.", "error");
+    return;
+  }
+
+  try {
+    requireTeacher();
+
+    const requestRef = requestsCollection().doc(requestId);
+
+    await db.runTransaction(async transaction => {
+      const requestSnapshot = await transaction.get(requestRef);
+
+      if (!requestSnapshot.exists) {
+        throw new Error("طلب الاستبدال غير موجود.");
       }
 
-      resetRewardForm();
-      await refreshDashboardData();
-    } catch (error) {
-      console.error("Save reward error:", error);
-      setStatus("rewardStatus", getErrorMessage(error));
-    }
-  }
+      const requestData = requestSnapshot.data();
 
-  function editReward(rewardId) {
-    const reward = rewardsCache.find((item) => item.id === rewardId);
-    if (!reward) return;
-
-    if (reward.className !== activeClass ||
-        normalizeSection(reward.section) !== activeSection) {
-      setStatus("rewardStatus", "لا يمكن تعديل مكافأة من صف أو شعبة أخرى.");
-      return;
-    }
-
-    editingRewardId = rewardId;
-
-    $("rewardName").value = reward.name || "";
-    $("rewardPrice").value = String(toNumber(reward.price));
-    $("rewardIcon").value = reward.icon || "🎁";
-    $("rewardDescription").value = reward.description || "";
-
-    setText("rewardSaveButton", "💾 حفظ التعديلات");
-    showElement("cancelRewardButton", true, "inline-block");
-
-    $("rewardName")?.focus();
-  }
-
-  async function deleteReward(rewardId) {
-    const reward = rewardsCache.find((item) => item.id === rewardId);
-    if (!reward) return;
-
-    if (reward.className !== activeClass ||
-        normalizeSection(reward.section) !== activeSection) {
-      setStatus("rewardStatus", "المكافأة لا تنتمي إلى الصف والشعبة المختارين.");
-      return;
-    }
-
-    if (!confirm(`هل تريدين حذف المكافأة «${reward.name || ""}»؟`)) return;
-
-    try {
-      await rewardsCollection().doc(rewardId).delete();
-
-      setStatus("rewardStatus", "تم حذف المكافأة.", "success");
-
-      if (editingRewardId === rewardId) resetRewardForm();
-
-      await refreshDashboardData();
-    } catch (error) {
-      console.error("Delete reward error:", error);
-      setStatus("rewardStatus", getErrorMessage(error));
-    }
-  }
-
-  // --------------------------------------------------
-  // طلبات استبدال المكافآت
-  // --------------------------------------------------
-
-  function renderRequests() {
-    const container = $("rewardRequestsList");
-    if (!container) return;
-
-    const requests = getVisibleRequests();
-
-    const pending = requests.filter((request) =>
-      (request.status || "pending") === "pending"
-    );
-
-    setText("pendingCount", String(pending.length));
-
-    if (!requests.length) {
-      container.textContent = "لا توجد طلبات في هذا الصف والشعبة.";
-      return;
-    }
-
-    container.innerHTML = requests.map((request) => {
-      const status = request.status || "pending";
-
-      const statusLabels = {
-        pending: "قيد الانتظار",
-        approved: "تمت الموافقة",
-        rejected: "مرفوض"
-      };
-
-      const buttons = status === "pending" ? `
-        <div class="request-actions">
-          <button type="button" data-action="approve-request"
-            data-id="${escapeHTML(request.id)}">✅ موافقة</button>
-
-          <button type="button" data-action="reject-request"
-            data-id="${escapeHTML(request.id)}">❌ رفض</button>
-        </div>
-      ` : "";
-
-      return `
-        <div class="request-card" data-request-id="${escapeHTML(request.id)}">
-          <h3>${escapeHTML(request.rewardName || request.rewardTitle || "طلب مكافأة")}</h3>
-          <p>الطالب: ${escapeHTML(request.studentName || "—")}</p>
-          <p>رمز الطالب: ${escapeHTML(request.studentCode || "—")}</p>
-          <p>النقاط المطلوبة: ${toNumber(request.rewardPrice ?? request.price)}</p>
-          <p>تاريخ الطلب: ${escapeHTML(formatDate(request.createdAt))}</p>
-          <p>الحالة: <strong>${escapeHTML(statusLabels[status] || status)}</strong></p>
-          ${buttons}
-        </div>
-      `;
-    }).join("");
-  }
-
-  async function updateRequestStatus(requestId, newStatus) {
-    const request = requestsCache.find((item) => item.id === requestId);
-    if (!request) return;
-
-    if (request.className !== activeClass ||
-        normalizeSection(request.section) !== activeSection) {
-      setStatus("studentStatus", "الطلب لا ينتمي إلى الصف والشعبة المختارين.");
-      return;
-    }
-
-    if ((request.status || "pending") !== "pending") {
-      setStatus("studentStatus", "تمت معالجة هذا الطلب مسبقًا.");
-      return;
-    }
-
-    if (newStatus === "rejected") {
-      try {
-        await requestsCollection().doc(requestId).update({
-          status: "rejected",
-          reviewedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-
-        setStatus("studentStatus", "تم رفض طلب المكافأة.", "success");
-        await refreshDashboardData();
-      } catch (error) {
-        console.error("Reject request error:", error);
-        setStatus("studentStatus", getErrorMessage(error));
+      if (requestData.status !== "pending") {
+        throw new Error("تمت معالجة هذا الطلب مسبقًا.");
       }
 
-      return;
-    }
+      let studentRef = null;
+      let studentSnapshot = null;
+      let pointsAfter = null;
 
-    // الموافقة تخصم النقاط داخل معاملة واحدة لمنع الخصم المكرر.
-    const studentId = request.studentId;
-    const cost = toNumber(request.rewardPrice ?? request.price, NaN);
-
-    if (!studentId || !Number.isInteger(cost) || cost < 0) {
-      setStatus(
-        "studentStatus",
-        "لا يمكن إتمام الطلب: بيانات الطالب أو تكلفة المكافأة غير مكتملة."
-      );
-      return;
-    }
-
-    try {
-      const requestRef = requestsCollection().doc(requestId);
-      const studentRef = studentsCollection().doc(studentId);
-
-      await db.runTransaction(async (transaction) => {
-        const requestSnapshot = await transaction.get(requestRef);
-        const studentSnapshot = await transaction.get(studentRef);
-
-        if (!requestSnapshot.exists) {
-          throw new Error("الطلب غير موجود.");
+      if (newStatus === "approved") {
+        if (!requestData.studentId) {
+          throw new Error("الطلب لا يحتوي على معرّف الطالبة.");
         }
+
+        studentRef = studentsCollection().doc(requestData.studentId);
+        studentSnapshot = await transaction.get(studentRef);
 
         if (!studentSnapshot.exists) {
-          throw new Error("لم يتم العثور على سجل الطالب.");
-        }
-
-        const requestData = requestSnapshot.data();
-
-        if ((requestData.status || "pending") !== "pending") {
-          throw new Error("تمت معالجة هذا الطلب مسبقًا.");
+          throw new Error("تعذر العثور على الطالبة.");
         }
 
         const studentData = studentSnapshot.data();
+        const currentPoints = Number(studentData.points) || 0;
+        const price = Number(requestData.price);
 
-        if (
-          studentData.className !== activeClass ||
-          normalizeSection(studentData.section) !== activeSection
-        ) {
-          throw new Error("الطالب لا ينتمي إلى الصف والشعبة المختارين.");
+        if (!Number.isFinite(price) || price <= 0) {
+          throw new Error("قيمة نقاط المكافأة غير صحيحة.");
         }
 
-        const currentPoints = toNumber(studentData.points);
-
-        if (currentPoints < cost) {
-          throw new Error("نقاط الطالب غير كافية لإتمام عملية الاستبدال.");
+        if (currentPoints < price) {
+          throw new Error("نقاط الطالبة غير كافية لقبول الطلب.");
         }
+
+        pointsAfter = currentPoints - price;
 
         transaction.update(studentRef, {
-          points: currentPoints - cost,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          points: pointsAfter,
+          updatedAt: timestampNow()
         });
+      }
 
-        transaction.update(requestRef, {
-          status: "approved",
-          reviewedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+      transaction.update(requestRef, {
+        status: newStatus,
+        processedAt: timestampNow(),
+        processedBy: currentTeacher.uid,
+        ...(pointsAfter !== null ? { pointsAfter } : {})
       });
-
-      setStatus("studentStatus", "تمت الموافقة على الطلب وخصم النقاط.", "success");
-      await refreshDashboardData();
-    } catch (error) {
-      console.error("Approve request error:", error);
-      setStatus("studentStatus", getErrorMessage(error));
-    }
-  }
-
-  // --------------------------------------------------
-  // ربط الأحداث
-  // --------------------------------------------------
-
-  function bindRegistrationClassEvents() {
-    const addButton = $("addRegistrationClassButton");
-    const container = $("registrationClasses");
-
-    addButton?.addEventListener("click", () => {
-      const firstRow = container?.querySelector(".registration-class-row");
-      if (!container || !firstRow) return;
-
-      const clone = firstRow.cloneNode(true);
-
-      const select = clone.querySelector(".register-class-select");
-      if (select) select.selectedIndex = 0;
-
-      clone.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
-        checkbox.checked = false;
-      });
-
-      container.appendChild(clone);
     });
 
-    container?.addEventListener("click", (event) => {
-      const button = event.target.closest(".remove-class-button");
-      if (!button) return;
+    await Promise.all([
+      loadStudents(),
+      loadRewardRequests()
+    ]);
 
-      const rows = container.querySelectorAll(".registration-class-row");
-
-      if (rows.length <= 1) {
-        alert("يجب الإبقاء على صف واحد على الأقل.");
-        return;
-      }
-
-      button.closest(".registration-class-row")?.remove();
-    });
-
-    $("teacherRegistrationForm")?.addEventListener("submit", (event) => {
-      const rows = document.querySelectorAll(".registration-class-row");
-
-      for (const row of rows) {
-        const classSelect = row.querySelector(".register-class-select");
-        const checkedSections = row.querySelectorAll(
-          'input[type="checkbox"]:checked'
-        );
-
-        if (!classSelect?.value || checkedSections.length === 0) {
-          event.preventDefault();
-          setStatus(
-            "registrationError",
-            "اختاري الصف وشعبة واحدة على الأقل لكل صف."
-          );
-          return;
-        }
-      }
-    });
-  }
-
-  function bindDashboardEvents() {
-    $("activeClassSelect")?.addEventListener("change", async (event) => {
-      activeClass = event.target.value || "";
-      activeSection = "";
-
-      populateSectionSelector();
-      updateSelectedClassInfo();
-
-      resetStudentForm();
-      resetRewardForm();
-
-      renderStudents();
-      renderRewards();
-      renderRequests();
-
-      setStatus("studentStatus", "");
-      setStatus("rewardStatus", "");
-    });
-
-    $("activeSectionSelect")?.addEventListener("change", (event) => {
-      activeSection = normalizeSection(event.target.value || "");
-      updateSelectedClassInfo();
-
-      resetStudentForm();
-      resetRewardForm();
-
-      renderStudents();
-      renderRewards();
-      renderRequests();
-
-      setStatus("studentStatus", "");
-      setStatus("rewardStatus", "");
-    });
-
-    $("studentSaveButton")?.addEventListener("click", saveStudent);
-    $("cancelStudentButton")?.addEventListener("click", resetStudentForm);
-
-    $("rewardSaveButton")?.addEventListener("click", saveReward);
-    $("cancelRewardButton")?.addEventListener("click", resetRewardForm);
-
-    $("logoutButton")?.addEventListener("click", logoutTeacher);
-
-    $("studentsList")?.addEventListener("click", async (event) => {
-      const button = event.target.closest("button[data-action]");
-      if (!button) return;
-
-      const { action, id } = button.dataset;
-      if (!id) return;
-
-      if (action === "edit-student") editStudent(id);
-      if (action === "add-point") await changeStudentPoints(id, 1);
-      if (action === "subtract-point") await changeStudentPoints(id, -1);
-      if (action === "delete-student") await deleteStudent(id);
-    });
-
-    $("rewardsManagerList")?.addEventListener("click", async (event) => {
-      const button = event.target.closest("button[data-action]");
-      if (!button) return;
-
-      const { action, id } = button.dataset;
-      if (!id) return;
-
-      if (action === "edit-reward") editReward(id);
-      if (action === "delete-reward") await deleteReward(id);
-    });
-
-    $("rewardRequestsList")?.addEventListener("click", async (event) => {
-      const button = event.target.closest("button[data-action]");
-      if (!button) return;
-
-      const { action, id } = button.dataset;
-      if (!id) return;
-
-      if (action === "approve-request") {
-        await updateRequestStatus(id, "approved");
-      }
-
-      if (action === "reject-request") {
-        await updateRequestStatus(id, "rejected");
-      }
-    });
-  }
-
-  function bindAuthenticationEvents() {
-    $("teacherLoginForm")?.addEventListener("submit", loginTeacher);
-    $("teacherRegistrationForm")?.addEventListener("submit", registerTeacher);
-
-    $("resetPasswordButton")?.addEventListener(
-      "click",
-      resetTeacherPassword
+    showMessage(
+      newStatus === "approved"
+        ? "تم قبول الطلب وخصم النقاط."
+        : "تم رفض الطلب.",
+      "success"
     );
+  } catch (error) {
+    showMessage(getErrorMessage(error), "error");
+  }
+}
 
-    $("showRegisterButton")?.addEventListener(
-      "click",
-      showRegistrationView
-    );
+/* -------------------- ربط الأزرار -------------------- */
 
-    $("backToLoginButton")?.addEventListener("click", () => {
-      setStatus("registrationError", "");
-      showLoginView();
+document.addEventListener("DOMContentLoaded", () => {
+  const loginButton = getElement("loginButton", "teacherLoginButton");
+  const registerButton = getElement(
+    "registerButton",
+    "teacherRegisterButton"
+  );
+  const logoutButton = getElement("logoutButton", "teacherLogoutButton");
+  const studentForm = getElement("studentForm");
+  const rewardForm = getElement("rewardForm");
+
+  if (loginButton) {
+    loginButton.addEventListener("click", event => {
+      event.preventDefault();
+      teacherLogin();
     });
-
-    bindRegistrationClassEvents();
-    bindDashboardEvents();
   }
 
-  // --------------------------------------------------
-  // مراقبة حالة تسجيل الدخول
-  // --------------------------------------------------
+  if (registerButton) {
+    registerButton.addEventListener("click", event => {
+      event.preventDefault();
+      teacherRegister();
+    });
+  }
 
-  auth.onAuthStateChanged(async (user) => {
-    if (!user) {
-      currentTeacher = null;
-      teacherProfile = null;
-      dashboardInitializedFor = null;
+  if (logoutButton) {
+    logoutButton.addEventListener("click", event => {
+      event.preventDefault();
+      teacherLogout();
+    });
+  }
 
-      activeClass = "";
-      activeSection = "";
+  if (studentForm) {
+    studentForm.addEventListener("submit", event => {
+      event.preventDefault();
+      saveStudent();
+    });
+  }
 
-      studentsCache = [];
-      rewardsCache = [];
-      requestsCache = [];
+  if (rewardForm) {
+    rewardForm.addEventListener("submit", event => {
+      event.preventDefault();
+      saveReward();
+    });
+  }
 
-      editingStudentId = null;
-      editingRewardId = null;
+  const cancelButton = getElement("cancelStudentEdit");
+  if (cancelButton) {
+    cancelButton.addEventListener("click", cancelStudentEdit);
+  }
+});
 
-      showLoginView();
-      return;
-    }
+/* -------------------- إتاحة الدوال لملف HTML -------------------- */
 
-    currentTeacher = user;
-
-    // يمنع إعادة تحميل لوحة التحكم عدة مرات للحساب نفسه.
-    if (dashboardInitializedFor === user.uid && teacherProfile) {
-      showDashboardView();
-      return;
-    }
-
-    await initializeDashboard(user);
-  });
-
-  // --------------------------------------------------
-  // بدء التشغيل
-  // --------------------------------------------------
-
-  bindAuthenticationEvents();
-
-  // تُظهر شاشة الدخول مبدئيًا إلى أن يتحقق Firebase من الجلسة.
-  showLoginView();
-
-})();
+Object.assign(window, {
+  teacherLogin,
+  teacherRegister,
+  teacherLogout,
+  loadStudents,
+  saveStudent,
+  editStudent,
+  deleteStudent,
+  cancelStudentEdit,
+  loadRewards,
+  saveReward,
+  deleteReward,
+  loadRewardRequests,
+  processRewardRequest
+});
