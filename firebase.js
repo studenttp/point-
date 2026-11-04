@@ -16,9 +16,10 @@ if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
 
-// إتاحة Firestore لصفحة الطالبات.
+// إتاحة خدمات Firebase للملفات الأخرى.
 window.db = firebase.firestore();
-
-// إتاحة Cloud Functions للبحث الآمن عن الطالبة
-// وتنفيذ عمليات الاستبدال من خلال الخادم.
+window.auth = firebase.auth();
 window.studentFunctions = firebase.functions();
+
+// مرجع مشروع Firebase.
+window.firebaseApp = firebase.app();
