@@ -1,319 +1,240 @@
 
+"use strict";
+
+// ===================================
+// أصوات منصة نجوم صَفّي
+// ===================================
+
 const clappingSound = new Audio("assets/sounds/clapping.mp3");
 const clickSound = new Audio("assets/sounds/click.wav");
 const magicSound = new Audio("assets/sounds/magic.mp3");
 const shineSound = new Audio("assets/sounds/shine.mp3");
 const takSound = new Audio("assets/sounds/tak.mp3");
 
-// ملاحظة: إذا كان الملف الصوتي بصيغة MOV، فقد لا يعمل كصوت في جميع المتصفحات.
-// الأفضل تحويله إلى MP3 ووضعه في assets/sounds.
 const titleSound = new Audio(
-    "assets/sounds/VoicesAI_Miku_Hatsune_ScreenRecording_001252_08092026.mov"
+  "assets/sounds/VoicesAI_Miku_Hatsune_ScreenRecording_001252_08092026.mov"
 );
 
 // ===================================
-// نجوم صفي
+// بيانات الطالبة الحالية
 // ===================================
 
-// بيانات الطالب الذي قام بتسجيل الدخول
 window.currentStudentId = null;
 window.currentStudentCode = null;
 window.currentStudentName = null;
 window.currentStudentPoints = 0;
-
+window.currentTeacherId = null;
+window.currentStudentClass = "";
+window.currentStudentSection = "";
 
 // ===================================
-// البحث عن الطالب
+// البحث عن الطالبة عبر خدمة الخادم
 // ===================================
 
-function searchStudent() {
+async function searchStudent() {
+  const codeInput = document.getElementById("studentcode");
+  const result = document.getElementById("result");
 
-    console.log("البحث يعمل");
+  if (!codeInput || !result) {
+    console.error("تعذر العثور على حقل الرمز أو مساحة النتائج.");
+    return;
+  }
 
-    const codeInput = document.getElementById("studentcode");
-    const result = document.getElementById("result");
+  const code = codeInput.value.trim();
 
-    if (!codeInput || !result) {
-        console.error("تعذر العثور على حقل الرمز أو مساحة النتائج.");
-        return;
-    }
-
-    const code = codeInput.value.trim();
-
-    if (code === "") {
-
-        result.innerHTML = `
-            <div class="error">
-                يرجى إدخال الرمز.
-            </div>
-        `;
-
-        clearStudentSession();
-        refreshRewards();
-        playError();
-
-        return;
-    }
+  if (!code) {
+    clearStudentSession();
 
     result.innerHTML = `
-        <div class="rewards-loading">
-            جارٍ البحث عن الطالب...
-        </div>
+      <div class="error">يرجى إدخال رمز الطالبة.</div>
     `;
 
-    db.collection("students")
-        .where("code", "==", code)
-        .get()
+    refreshRewards();
+    playError();
+    return;
+  }
 
-        .then((snapshot) => {
+  result.innerHTML = `
+    <div class="rewards-loading">جارٍ البحث عن الطالبة...</div>
+  `;
 
-            // =================================
-            // الرمز غير صحيح
-            // =================================
+  try {
+    if (!window.studentFunctions) {
+      throw new Error("CLOUD_FUNCTIONS_NOT_INITIALIZED");
+    }
 
-            if (snapshot.empty) {
+    const lookupStudent = window.studentFunctions
+      .httpsCallable("lookupStudentByCode");
 
-                clearStudentSession();
+    const response = await lookupStudent({ code });
+    const student = response.data?.student;
 
-                result.innerHTML = `
-                    <div class="error">
-                        ❌ الرمز غير صحيح
-                    </div>
-                `;
+    if (!student || !student.studentId || !student.teacherId) {
+      clearStudentSession();
 
-                refreshRewards();
-                playError();
+      result.innerHTML = `
+        <div class="error">❌ لم يتم العثور على الطالبة.</div>
+      `;
 
-                return;
-            }
+      refreshRewards();
+      playError();
+      return;
+    }
 
-            // =================================
-            // الطالب موجود
-            // =================================
+    window.currentStudentId = student.studentId;
+    window.currentStudentCode = student.code || code;
+    window.currentStudentName = student.name || "الطالبة";
+    window.currentStudentPoints = Number(student.points) || 0;
+    window.currentTeacherId = student.teacherId;
+    window.currentStudentClass = student.className || "";
+    window.currentStudentSection = student.section || "";
 
-            const doc = snapshot.docs[0];
-            const student = doc.data();
+    result.innerHTML = `
+      <div class="student-card">
+        <h2>🌟 ${escapeHtml(window.currentStudentName)}</h2>
 
-            // حفظ بيانات الطالب
-            window.currentStudentId = doc.id;
-            window.currentStudentCode = student.code || code;
-            window.currentStudentName = student.name || "الطالب";
-            window.currentStudentPoints = Number(student.points) || 0;
+        <div class="points">
+          🏆 مجموع النقاط
+          <h1>${window.currentStudentPoints}</h1>
+        </div>
 
-            result.innerHTML = `
-                <div class="student-card">
+        <p>${escapeHtml(student.message || "")}</p>
+      </div>
+    `;
 
-                    <h2>
-                        🌟 ${escapeHtml(window.currentStudentName)}
-                    </h2>
+    playSuccess();
+    refreshRewards();
 
-                    <div class="points">
-                        🏆 مجموع النقاط
+  } catch (error) {
+    console.error("تعذر البحث عن الطالبة:", error);
 
-                        <h1>
-                            ${window.currentStudentPoints}
-                        </h1>
-                    </div>
+    clearStudentSession();
 
-                    <p>
-                        ${escapeHtml(student.message || "")}
-                    </p>
+    result.innerHTML = `
+      <div class="error">
+        ⚠️ تعذر البحث عن الطالبة حاليًا.
+        يرجى المحاولة لاحقًا.
+      </div>
+    `;
 
-                </div>
-            `;
-
-            playSuccess();
-
-            // تحديث متجر المكافآت
-            refreshRewards();
-
-        })
-
-        .catch((error) => {
-
-            console.error("خطأ في البحث عن الطالب:", error);
-
-            clearStudentSession();
-
-            result.innerHTML = `
-                <div class="error">
-                    ⚠️ حدث خطأ أثناء البحث.
-                    يرجى المحاولة مرة أخرى.
-                </div>
-            `;
-
-            refreshRewards();
-
-        });
-
+    refreshRewards();
+    playError();
+  }
 }
 
-
-// =====================================
-// مسح بيانات الطالب الحالي
-// =====================================
+// ===================================
+// مسح بيانات جلسة الطالبة
+// ===================================
 
 function clearStudentSession() {
-
-    window.currentStudentId = null;
-    window.currentStudentCode = null;
-    window.currentStudentName = null;
-    window.currentStudentPoints = 0;
-
+  window.currentStudentId = null;
+  window.currentStudentCode = null;
+  window.currentStudentName = null;
+  window.currentStudentPoints = 0;
+  window.currentTeacherId = null;
+  window.currentStudentClass = "";
+  window.currentStudentSection = "";
 }
 
-
-// =====================================
-// تحديث متجر المكافآت عند الحاجة
-// =====================================
+// ===================================
+// تحديث متجر المكافآت
+// ===================================
 
 function refreshRewards() {
-
-    if (typeof window.loadRewards === "function") {
-        window.loadRewards();
-    }
-
+  if (typeof window.loadRewards === "function") {
+    window.loadRewards();
+  }
 }
 
-
-// =====================================
+// ===================================
 // أصوات النجاح والخطأ
-// =====================================
+// ===================================
 
 function playSuccess() {
+  clappingSound.currentTime = 0;
+  clappingSound.play().catch(() => {});
 
-    clappingSound.currentTime = 0;
-    clappingSound.play().catch(() => {});
-
-    shineSound.currentTime = 0;
-    shineSound.play().catch(() => {});
-
+  shineSound.currentTime = 0;
+  shineSound.play().catch(() => {});
 }
-
 
 function playError() {
-
-    takSound.currentTime = 0;
-    takSound.play().catch(() => {});
-
+  takSound.currentTime = 0;
+  takSound.play().catch(() => {});
 }
 
-
-// =====================================
-// حماية النصوص
-// =====================================
+// ===================================
+// حماية النصوص من HTML
+// ===================================
 
 function escapeHtml(text) {
-
-    return String(text)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-
+  return String(text ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
-
-// =====================================
-// تغيير اسم نجم الشهر
-// =====================================
+// ===================================
+// اسم نجم الشهر
+// ===================================
 
 function setStarStudent() {
+  const starStudent = document.getElementById("starStudent");
 
-    const starStudent = document.getElementById("starStudent");
-
-    if (starStudent) {
-        starStudent.textContent = "سيتم تحديده لاحقًا";
-    }
-
+  if (starStudent) {
+    starStudent.textContent = "سيتم تحديده لاحقًا";
+  }
 }
 
-if (document.readyState === "loading") {
+// ===================================
+// الأصوات عند الضغط على الأزرار
+// ===================================
 
-    document.addEventListener("DOMContentLoaded", setStarStudent);
-
-} else {
-
-    setStarStudent();
-
+function playClick() {
+  clickSound.currentTime = 0;
+  clickSound.play().catch(() => {});
 }
 
+function setupPageSounds() {
+  setStarStudent();
 
-// =====================================
-// صوت زر البداية
-// =====================================
+  const startBtn = document.querySelector(".start-btn");
+  const searchBtn = document.querySelector(".search-box button");
+  const title = document.querySelector(".hero-title");
 
-const startBtn = document.querySelector(".start-btn");
+  if (startBtn) {
+    startBtn.addEventListener("click", playClick);
+  }
 
-if (startBtn) {
+  if (searchBtn) {
+    searchBtn.addEventListener("click", playClick);
+  }
 
-    startBtn.addEventListener("click", () => {
-
-        clickSound.currentTime = 0;
-        clickSound.play().catch(() => {});
-
+  if (title) {
+    title.addEventListener("click", () => {
+      titleSound.currentTime = 0;
+      titleSound.play().catch((error) => {
+        console.warn("تعذر تشغيل صوت العنوان:", error);
+      });
     });
-
+  }
 }
 
-
-// =====================================
-// صوت زر البحث
-// =====================================
-
-const searchBtn = document.querySelector(".search-box button");
-
-if (searchBtn) {
-
-    searchBtn.addEventListener("click", () => {
-
-        clickSound.currentTime = 0;
-        clickSound.play().catch(() => {});
-
-    });
-
-}
-
-
-// =====================================
-// جعل الدالة متاحة للزر
-// =====================================
+// ===================================
+// إتاحة الدوال لملفات الصفحة
+// ===================================
 
 window.searchStudent = searchStudent;
 window.escapeHtml = escapeHtml;
-
-
-// =====================================
-// صوت عنوان نجوم صفي
-// =====================================
-
-function setupTitleSound() {
-
-    const title = document.querySelector(".hero-title");
-
-    if (title) {
-
-        title.addEventListener("click", () => {
-
-            titleSound.currentTime = 0;
-
-            titleSound.play().catch((error) => {
-                console.warn("تعذر تشغيل صوت العنوان:", error);
-            });
-
-        });
-
-    }
-
-}
+window.clearStudentSession = clearStudentSession;
+window.refreshRewards = refreshRewards;
+window.playSuccess = playSuccess;
+window.playError = playError;
 
 if (document.readyState === "loading") {
-
-    document.addEventListener("DOMContentLoaded", setupTitleSound);
-
+  document.addEventListener("DOMContentLoaded", setupPageSounds);
 } else {
-
-    setupTitleSound();
-
+  setupPageSounds();
 }
