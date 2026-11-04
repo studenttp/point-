@@ -21,7 +21,7 @@ exports.lookupStudentByCode = onCall(
   async (request) => {
     const code = String(request.data?.code || "").trim();
 
-    if (!code || code.length > 100) {
+    if (!code || code.length > 100 || code.includes("/")) {
       throw new HttpsError(
         "invalid-argument",
         "يرجى إدخال رمز صحيح."
@@ -29,8 +29,11 @@ exports.lookupStudentByCode = onCall(
     }
 
     try {
-      // فهرس الرمز: studentCodeIndex/{code}
-      const indexRef = db.collection("studentCodeIndex").doc(code);
+      // البحث في الفهرس المركزي للرموز.
+      const indexRef = db
+        .collection("studentCodeIndex")
+        .doc(code);
+
       const indexSnapshot = await indexRef.get();
 
       if (!indexSnapshot.exists) {
@@ -41,21 +44,26 @@ exports.lookupStudentByCode = onCall(
       }
 
       const index = indexSnapshot.data();
+
       const teacherId = index.teacherId;
       const studentId = index.studentId;
 
       if (
         typeof teacherId !== "string" ||
         typeof studentId !== "string" ||
-        !teacherId ||
-        !studentId
+        !teacherId.trim() ||
+        !studentId.trim() ||
+        String(index.code || "").trim() !== code
       ) {
+        console.error("Invalid student code index.");
+
         throw new HttpsError(
           "failed-precondition",
-          "بيانات ربط الرمز غير مكتملة."
+          "تعذر التحقق من سجل الطالبة."
         );
       }
 
+      // جلب سجل الطالبة من مجموعة معلمتها.
       const studentRef = db
         .collection("teachers")
         .doc(teacherId)
@@ -67,20 +75,29 @@ exports.lookupStudentByCode = onCall(
       if (!studentSnapshot.exists) {
         throw new HttpsError(
           "not-found",
-          "لم يتم العثور على سجل الطالبة."
+          "لم يتم العثور على الطالبة."
         );
       }
 
       const student = studentSnapshot.data();
 
-      // التأكد من تطابق الرمز مع سجل الطالبة.
-      if (String(student.code || "").trim() !== code) {
+      // التحقق من تطابق الرمز وملكية السجل.
+      if (
+        String(student.code || "").trim() !== code ||
+        (
+          student.teacherId &&
+          student.teacherId !== teacherId
+        )
+      ) {
+        console.error("Student record does not match its index.");
+
         throw new HttpsError(
           "failed-precondition",
-          "رمز الطالبة غير متطابق مع السجل."
+          "تعذر التحقق من سجل الطالبة."
         );
       }
 
+      // إرجاع البيانات اللازمة لواجهة الطالبة فقط.
       return {
         student: {
           studentId,
@@ -98,11 +115,14 @@ exports.lookupStudentByCode = onCall(
         throw error;
       }
 
-      console.error("lookupStudentByCode failed:", error);
+      console.error(
+        "lookupStudentByCode failed:",
+        error
+      );
 
       throw new HttpsError(
         "internal",
-        "تعذر البحث عن الطالبة."
+        "تعذر البحث عن الطالبة حاليًا."
       );
     }
   }
