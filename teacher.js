@@ -1083,28 +1083,7 @@ function initializeTeacherPanel() {
 
   /* -------------------- ربط الأحداث -------------------- */
 
-  document.addEventListener("DOMContentLoaded", () => {
-    // إرسال نماذج الدخول والتسجيل
-    const loginForm = el("teacherLoginForm");
-    if (loginForm) {
-      loginForm.addEventListener("submit", event => {
-        event.preventDefault();
-        teacherLogin();
-      });
-    }
-
-    const registrationForm = el("teacherRegistrationForm");
-    if (registrationForm) {
-      registrationForm.addEventListener("submit", event => {
-        event.preventDefault();
-        teacherRegister();
-      });
-    }
-
-    el("showRegisterButton")?.addEventListener("click", showRegistration);
-    el("backToLoginButton")?.addEventListener("click", showLogin);
-    el("resetPasswordButton")?.addEventListener("click", resetPassword);
-    el("logoutButton")?.addEventListener("click", teacherLogout);
+tton")?.addEventListener("click", teacherLogout);
 
     el("studentSaveButton")?.addEventListener("click", saveStudent);
     el("rewardSaveButton")?.addEventListener("click", saveReward);
