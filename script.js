@@ -251,8 +251,22 @@ async function searchStudent() {
       error
     );
 
-    let message =
-      "تعذر البحث عن الطالبة حاليًا. يرجى المحاولة لاحقًا.";
+
+} catch (error) {
+  console.error("خطأ البحث بالتفصيل:", error);
+
+  clearStudentSession();
+
+  const errorCode = error?.code || "غير محدد";
+  const errorMessage = error?.message || "لا توجد تفاصيل";
+
+  showSearchError(
+    `رمز الخطأ: ${errorCode} | التفاصيل: ${errorMessage}`
+  );
+
+  refreshRewards();
+  playError();
+}
 
     const errorCode = String(error?.code || "");
 
