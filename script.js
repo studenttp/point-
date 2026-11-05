@@ -53,7 +53,10 @@ function escapeHtml(text) {
     .replace(/'/g, "&#039;");
 }
 
-// الحصول على اتصال Firestore المهيأ في الصفحة.
+// ===================================
+// الاتصال بقاعدة بيانات Firestore
+// ===================================
+
 function getStudentFirestore() {
   if (window.studentDB) {
     return window.studentDB;
@@ -76,6 +79,10 @@ function getStudentFirestore() {
   throw new Error("FIRESTORE_NOT_INITIALIZED");
 }
 
+// ===================================
+// عرض رسائل البحث
+// ===================================
+
 function showSearchError(message) {
   const result = getPageElement("result");
 
@@ -87,7 +94,7 @@ function showSearchError(message) {
 }
 
 // ===================================
-// البحث عن الطالبة عبر Firestore
+// البحث عن الطالبة
 // ===================================
 
 async function searchStudent() {
@@ -101,6 +108,7 @@ async function searchStudent() {
     return;
   }
 
+  // قراءة الرمز المدخل
   const code = codeInput.value.trim();
 
   if (!code) {
@@ -124,7 +132,10 @@ async function searchStudent() {
   try {
     const db = getStudentFirestore();
 
-    // الخطوة الأولى: البحث عن الرمز في فهرس الرموز.
+    // ---------------------------------
+    // الخطوة الأولى: البحث عن رمز الطالبة
+    // ---------------------------------
+
     const indexSnapshot = await db
       .collection("studentCodeIndex")
       .doc(code)
@@ -147,11 +158,12 @@ async function searchStudent() {
 
     if (!studentId || !teacherId) {
       console.error(
-        "سجل studentCodeIndex لا يحتوي على studentId أو teacherId."
+        "بيانات studentCodeIndex غير مكتملة:",
+        index
       );
 
       showSearchError(
-        "بيانات الرمز غير مكتملة. يرجى التواصل مع المعلمة."
+        "بيانات رمز الطالبة غير مكتملة. يرجى التواصل مع المعلمة."
       );
 
       refreshRewards();
@@ -159,7 +171,10 @@ async function searchStudent() {
       return;
     }
 
-    // الخطوة الثانية: قراءة بيانات الطالبة من مسارها.
+    // ---------------------------------
+    // الخطوة الثانية: جلب بيانات الطالبة
+    // ---------------------------------
+
     const studentSnapshot = await db
       .collection("teachers")
       .doc(teacherId)
@@ -168,12 +183,8 @@ async function searchStudent() {
       .get();
 
     if (!studentSnapshot.exists) {
-      console.error(
-        "لم يُعثر على سجل الطالبة في مسار المعلمة."
-      );
-
       showSearchError(
-        "عُثر على الرمز، لكن تعذر العثور على بيانات الطالبة. يرجى إبلاغ المعلمة."
+        "تم العثور على الرمز، لكن بيانات الطالبة غير موجودة في سجل المعلمة."
       );
 
       refreshRewards();
@@ -183,14 +194,17 @@ async function searchStudent() {
 
     const student = studentSnapshot.data() || {};
 
-    // التأكد من أن الرمز يطابق سجل الطالبة.
-    if (String(student.code || "") !== code) {
+    // ---------------------------------
+    // التأكد من تطابق الرمز
+    // ---------------------------------
+
+    if (String(student.code || "").trim() !== code) {
       console.error(
-        "الرمز في الفهرس لا يطابق الرمز في سجل الطالبة."
+        "رمز الطالبة في الفهرس لا يطابق الرمز في سجلها."
       );
 
       showSearchError(
-        "بيانات الرمز غير متطابقة. يرجى التواصل مع المعلمة."
+        "الرمز غير متطابق مع بيانات الطالبة. يرجى مراجعة المعلمة."
       );
 
       refreshRewards();
@@ -198,7 +212,10 @@ async function searchStudent() {
       return;
     }
 
-    // حفظ بيانات الطالبة.
+    // ---------------------------------
+    // حفظ بيانات الطالبة
+    // ---------------------------------
+
     window.currentStudentId = studentId;
     window.currentStudentCode = code;
     window.currentStudentName = student.name || "الطالبة";
@@ -212,14 +229,23 @@ async function searchStudent() {
       student.section ?? index.section ?? ""
     );
 
-    // عرض بيانات الطالبة.
+    // ---------------------------------
+    // عرض بيانات الطالبة
+    // ---------------------------------
+
     result.innerHTML = `
       <div class="student-card">
-        <h2>🌟 ${escapeHtml(window.currentStudentName)}</h2>
+
+        <h2>
+          🌟 ${escapeHtml(window.currentStudentName)}
+        </h2>
 
         <div class="points">
           🏆 مجموع النقاط
-          <h1>${window.currentStudentPoints}</h1>
+
+          <h1>
+            ${window.currentStudentPoints}
+          </h1>
         </div>
 
         ${
@@ -238,7 +264,10 @@ async function searchStudent() {
             : ""
         }
 
-        <p>${escapeHtml(student.message || "")}</p>
+        <p>
+          ${escapeHtml(student.message || "")}
+        </p>
+
       </div>
     `;
 
@@ -246,44 +275,34 @@ async function searchStudent() {
     refreshRewards();
 
   } catch (error) {
-    console.error(
-      "تعذر البحث عن الطالبة عبر Firestore:",
-      error
-    );
 
+    // ---------------------------------
+    // معالجة الأخطاء
+    // ---------------------------------
 
-} catch (error) {
-  console.error("خطأ البحث بالتفصيل:", error);
+    console.error("خطأ البحث بالتفصيل:", error);
 
-  clearStudentSession();
+    clearStudentSession();
 
-  const errorCode = error?.code || "غير محدد";
-  const errorMessage = error?.message || "لا توجد تفاصيل";
+    const errorCode = String(error?.code || "غير محدد");
+    const errorMessage = error?.message || "لا توجد تفاصيل";
 
-  showSearchError(
-    `رمز الخطأ: ${errorCode} | التفاصيل: ${errorMessage}`
-  );
-
-  refreshRewards();
-  playError();
-}
-
-    const errorCode = String(error?.code || "");
+    let message =
+      `رمز الخطأ: ${errorCode} | التفاصيل: ${errorMessage}`;
 
     if (error.message === "FIRESTORE_NOT_INITIALIZED") {
       message =
-        "اتصال Firestore غير مهيأ في هذه الصفحة. تحققي من تحميل ملف Firebase قبل script.js.";
+        "اتصال Firestore غير مهيأ في الصفحة. تحققي من تحميل ملف Firebase قبل script.js.";
 
     } else if (errorCode.includes("permission-denied")) {
       message =
-        "تعذر عرض بيانات الطالبة بسبب صلاحيات Firestore. يلزم ضبط صلاحيات آمنة للبحث.";
+        "لا توجد صلاحية لقراءة بيانات الطالبة من Firestore. يلزم ضبط صلاحيات آمنة للبحث.";
 
     } else if (errorCode.includes("unavailable")) {
       message =
-        "تعذر الاتصال بالخدمة الآن. تحققي من الإنترنت ثم حاولي مجددًا.";
+        "تعذر الاتصال بقاعدة البيانات. تحققي من الإنترنت ثم حاولي مجددًا.";
     }
 
-    clearStudentSession();
     showSearchError(message);
 
     refreshRewards();
@@ -322,6 +341,7 @@ function refreshRewards() {
           );
         });
       }
+
     } catch (error) {
       console.error(
         "تعذر تحديث متجر المكافآت:",
@@ -365,6 +385,7 @@ function playAudio(audio) {
         console.warn("تعذر تشغيل الصوت:", error);
       });
     }
+
   } catch (error) {
     console.warn(
       "حدث خطأ أثناء تشغيل الصوت:",
@@ -397,16 +418,19 @@ function setupPageSounds() {
   const searchForm = getPageElement("studentSearchForm");
   const title = document.querySelector(".hero-title");
 
+  // صوت زر البداية
   if (startBtn && !startBtn.dataset.soundBound) {
     startBtn.dataset.soundBound = "true";
     startBtn.addEventListener("click", playClick);
   }
 
+  // صوت زر البحث
   if (searchBtn && !searchBtn.dataset.soundBound) {
     searchBtn.dataset.soundBound = "true";
     searchBtn.addEventListener("click", playClick);
   }
 
+  // ربط البحث بالنموذج
   if (searchForm && !searchForm.dataset.searchBound) {
     searchForm.dataset.searchBound = "true";
 
@@ -416,6 +440,8 @@ function setupPageSounds() {
     });
 
   } else if (searchBtn && !searchBtn.dataset.searchBound) {
+
+    // ربط البحث بالزر إذا لم يوجد نموذج
     searchBtn.dataset.searchBound = "true";
 
     searchBtn.addEventListener("click", event => {
@@ -424,6 +450,7 @@ function setupPageSounds() {
     });
   }
 
+  // صوت عنوان الموقع
   if (title && !title.dataset.titleSoundBound) {
     title.dataset.titleSoundBound = "true";
 
@@ -434,28 +461,33 @@ function setupPageSounds() {
 }
 
 // ===================================
-// إتاحة الدوال لملفات الصفحة
+// إتاحة الدوال لبقية ملفات الموقع
 // ===================================
 
 window.searchStudent = searchStudent;
 window.escapeHtml = escapeHtml;
 window.clearStudentSession = clearStudentSession;
 window.refreshRewards = refreshRewards;
+
 window.playSuccess = playSuccess;
 window.playError = playError;
 window.playClick = playClick;
 window.playMagic = playMagic;
 
 // ===================================
-// تشغيل إعدادات الصفحة
+// تشغيل الصفحة
 // ===================================
 
 if (document.readyState === "loading") {
+
   document.addEventListener(
     "DOMContentLoaded",
     setupPageSounds,
     { once: true }
   );
+
 } else {
+
   setupPageSounds();
+
 }
