@@ -1,0 +1,42 @@
+
+name: Deploy Najoom Safi Firebase Function
+
+on:
+  push:
+    paths:
+      - 'functions/**'
+      - 'firebase.json'
+      - '.github/workflows/firebase-deploy.yml'
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Functions dependencies
+        working-directory: functions
+        run: npm install
+
+      - name: Authenticate with Firebase project
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_READ_D879D }}'
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy lookupStudentByCode
+        run: firebase deploy --only functions:lookupStudentByCode --project read-d879d --non-interactive
