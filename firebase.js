@@ -19,7 +19,7 @@ if (!firebase.apps.length) {
 // إتاحة خدمات Firebase للملفات الأخرى.
 window.db = firebase.firestore();
 window.auth = firebase.auth();
-window.studentFunctions = firebase.functions();
+window.studentFunctions = firebase.app().functions("us-central1");
 
 // مرجع مشروع Firebase.
 window.firebaseApp = firebase.app();
