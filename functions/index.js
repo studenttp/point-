@@ -17,7 +17,7 @@ const db = getFirestore();
 exports.lookupStudentByCode = onCall(
   {
     region: "us-central1",
-    enforceAppCheck: true
+    enforceAppCheck: false
   },
   async (request) => {
     const code = String(request.data?.code || "").trim();
