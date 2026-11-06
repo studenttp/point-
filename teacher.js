@@ -2,7 +2,11 @@
 /* =========================================================
    نجوم صفي - teacher.js
    Firebase Compat SDK
-   يستخدم تطبيق teacherApp من teacher-firebase.js
+
+   مصدر بيانات الطالبات الوحيد:
+   teachers/{teacherId}/students/{studentId}
+
+   لا يستخدم studentCodeIndex نهائيًا.
    ========================================================= */
 
 "use strict";
@@ -18,6 +22,7 @@ if (
   );
 
   const errorBox = document.getElementById("loginError");
+
   if (errorBox) {
     errorBox.textContent =
       "تعذر تهيئة الاتصال بالخدمة. أعيدي تحميل الصفحة، وإذا استمرت المشكلة فتحققي من إعدادات Firebase.";
@@ -28,7 +33,6 @@ if (
 }
 
 function initializeTeacherPanel() {
-  // استخدم تطبيق المعلمات المسمى teacherApp.
   const db = window.teacherDB;
   const auth = window.teacherAuth;
 
@@ -83,6 +87,7 @@ function initializeTeacherPanel() {
 
   function clearMessage(targetId) {
     const node = el(targetId);
+
     if (node) {
       node.textContent = "";
       node.style.display = "none";
@@ -164,6 +169,7 @@ function initializeTeacherPanel() {
 
   function teacherRef() {
     requireTeacher();
+
     return db.collection("teachers").doc(currentTeacher.uid);
   }
 
@@ -179,10 +185,6 @@ function initializeTeacherPanel() {
     return teacherRef().collection("rewardRequests");
   }
 
-  function codeIndexRef(code) {
-    return db.collection("studentCodeIndex").doc(code);
-  }
-
   function activeClass() {
     return value("activeClassSelect", "className");
   }
@@ -196,9 +198,17 @@ function initializeTeacherPanel() {
     const school = teacherProfile.schoolName || "المدرسة";
     const subject = teacherProfile.subjectName || "";
 
-    if (el("teacherName")) el("teacherName").textContent = name;
-    if (el("schoolName")) el("schoolName").textContent = school;
-    if (el("subjectName")) el("subjectName").value = subject;
+    if (el("teacherName")) {
+      el("teacherName").textContent = name;
+    }
+
+    if (el("schoolName")) {
+      el("schoolName").textContent = school;
+    }
+
+    if (el("subjectName")) {
+      el("subjectName").value = subject;
+    }
 
     updateSelectedClassInfo();
   }
@@ -447,9 +457,7 @@ function initializeTeacherPanel() {
     }
   }
 
-  /* =========================================================
-     استعادة كلمة المرور - النسخة المعدلة
-     ========================================================= */
+  /* -------------------- استعادة كلمة المرور -------------------- */
 
   async function resetPassword() {
     clearMessage("loginError");
@@ -503,10 +511,6 @@ function initializeTeacherPanel() {
         "loginError"
       );
 
-      console.log(
-        "[نجوم صفي] تم إرسال طلب استعادة كلمة المرور."
-      );
-
     } catch (error) {
       console.error(
         "[نجوم صفي] تعذر إرسال رسالة استعادة كلمة المرور:",
@@ -517,7 +521,7 @@ function initializeTeacherPanel() {
 
       if (error.code === "auth/operation-not-allowed") {
         message =
-          "خدمة البريد الإلكتروني وكلمة المرور غير مفعّلة في إعدادات Firebase Authentication.";
+          "خدمة البريد الإلكتروني وكلمة المرور غير مفعّلة في إعدادات Firebase.";
 
       } else if (error.code === "auth/invalid-email") {
         message = "البريد الإلكتروني غير صحيح.";
@@ -671,6 +675,7 @@ function initializeTeacherPanel() {
       }));
 
       renderStudents();
+
       return studentsCache;
 
     } catch (error) {
@@ -681,6 +686,7 @@ function initializeTeacherPanel() {
 
   function renderStudents() {
     const container = el("studentsList");
+
     if (!container) return;
 
     const className = activeClass();
@@ -722,91 +728,51 @@ function initializeTeacherPanel() {
     `).join("");
   }
 
+  // الحفظ المباشر في teachers/{teacherId}/students فقط.
   async function saveStudent() {
     try {
       requireTeacher();
 
       const data = getStudentFormData();
-      const teacherId = currentTeacher.uid;
 
       const studentRef = editingStudentId
         ? studentsRef().doc(editingStudentId)
         : studentsRef().doc();
 
-      const newIndexRef = codeIndexRef(data.code);
+      let oldData = {};
 
-      await db.runTransaction(async transaction => {
-        const studentSnapshot = editingStudentId
-          ? await transaction.get(studentRef)
-          : null;
+      if (editingStudentId) {
+        const snapshot = await studentRef.get();
 
-        if (editingStudentId && !studentSnapshot.exists) {
+        if (!snapshot.exists) {
           throw new Error("لم يتم العثور على سجل الطالبة.");
         }
 
-        const newIndexSnapshot = await transaction.get(newIndexRef);
+        oldData = snapshot.data() || {};
+      }
 
-        let oldIndexRef = null;
-        let oldIndexSnapshot = null;
-        let oldCode = null;
+      // التحقق من عدم تكرار الرمز داخل سجلات المعلمة.
+      const duplicateSnapshot = await studentsRef()
+        .where("code", "==", data.code)
+        .limit(2)
+        .get();
 
-        if (studentSnapshot?.exists) {
-          oldCode = studentSnapshot.data().code;
+      const duplicate = duplicateSnapshot.docs.find(
+        doc => doc.id !== studentRef.id
+      );
 
-          if (oldCode && oldCode !== data.code) {
-            oldIndexRef = codeIndexRef(oldCode);
-            oldIndexSnapshot = await transaction.get(oldIndexRef);
-          }
-        }
+      if (duplicate) {
+        throw new Error(
+          "هذا الرمز مستخدم بالفعل لدى طالبة أخرى في سجلاتك. اختاري رمزًا آخر."
+        );
+      }
 
-        if (newIndexSnapshot.exists) {
-          const index = newIndexSnapshot.data();
-
-          const sameStudent =
-            index.teacherId === teacherId &&
-            index.studentId === studentRef.id;
-
-          if (!sameStudent) {
-            throw new Error(
-              "هذا الرمز مستخدم بالفعل. اختاري رمزًا آخر."
-            );
-          }
-        }
-
-        const oldData = studentSnapshot?.exists
-          ? studentSnapshot.data()
-          : {};
-
-        transaction.set(studentRef, {
-          ...data,
-          teacherId,
-          createdAt: oldData.createdAt || serverTimestamp(),
-          updatedAt: serverTimestamp()
-        }, { merge: true });
-
-        transaction.set(newIndexRef, {
-          code: data.code,
-          teacherId,
-          studentId: studentRef.id,
-          className: data.className,
-          section: data.section,
-          createdAt: newIndexSnapshot.exists
-            ? (newIndexSnapshot.data().createdAt || serverTimestamp())
-            : serverTimestamp(),
-          updatedAt: serverTimestamp()
-        }, { merge: true });
-
-        if (oldIndexRef && oldIndexSnapshot?.exists) {
-          const oldIndex = oldIndexSnapshot.data();
-
-          if (
-            oldIndex.teacherId === teacherId &&
-            oldIndex.studentId === studentRef.id
-          ) {
-            transaction.delete(oldIndexRef);
-          }
-        }
-      });
+      await studentRef.set({
+        ...data,
+        teacherId: currentTeacher.uid,
+        createdAt: oldData.createdAt || serverTimestamp(),
+        updatedAt: serverTimestamp()
+      }, { merge: true });
 
       editingStudentId = null;
 
@@ -885,45 +851,14 @@ function initializeTeacherPanel() {
     clearMessage("studentStatus");
   }
 
+  // حذف سجل الطالبة فقط من مجموعة students.
   async function deleteStudent(studentId) {
     if (!confirm("هل تريدين حذف هذه الطالبة؟")) return;
 
     try {
       requireTeacher();
 
-      const studentRef = studentsRef().doc(studentId);
-
-      await db.runTransaction(async transaction => {
-        const snapshot = await transaction.get(studentRef);
-
-        if (!snapshot.exists) {
-          throw new Error("سجل الطالبة غير موجود.");
-        }
-
-        const student = snapshot.data();
-        const code = student.code;
-
-        let indexRef = null;
-        let indexSnapshot = null;
-
-        if (code) {
-          indexRef = codeIndexRef(code);
-          indexSnapshot = await transaction.get(indexRef);
-        }
-
-        if (indexSnapshot?.exists) {
-          const index = indexSnapshot.data();
-
-          if (
-            index.teacherId === currentTeacher.uid &&
-            index.studentId === studentId
-          ) {
-            transaction.delete(indexRef);
-          }
-        }
-
-        transaction.delete(studentRef);
-      });
+      await studentsRef().doc(studentId).delete();
 
       if (editingStudentId === studentId) {
         cancelStudentEdit();
@@ -956,6 +891,7 @@ function initializeTeacherPanel() {
       }));
 
       renderRewards();
+
       return rewardsCache;
 
     } catch (error) {
@@ -966,6 +902,7 @@ function initializeTeacherPanel() {
 
   function renderRewards() {
     const container = el("rewardsManagerList");
+
     if (!container) return;
 
     if (!activeClass() || !activeSection()) {
@@ -1109,6 +1046,7 @@ function initializeTeacherPanel() {
       }));
 
       renderRewardRequests();
+
       return requestsCache;
 
     } catch (error) {
@@ -1119,6 +1057,7 @@ function initializeTeacherPanel() {
 
   function renderRewardRequests() {
     const container = el("rewardRequestsList");
+
     if (!container) return;
 
     const filtered = requestsCache.filter(request =>
@@ -1292,6 +1231,7 @@ function initializeTeacherPanel() {
 
   function addRegistrationClass() {
     const container = el("registrationClasses");
+
     const firstRow = container?.querySelector(
       ".registration-class-row"
     );
@@ -1347,10 +1287,7 @@ function initializeTeacherPanel() {
 
     bindClick("showRegisterButton", showRegistration);
     bindClick("backToLoginButton", showLogin);
-
-    // ربط زر استعادة كلمة المرور
     bindClick("resetPasswordButton", resetPassword);
-
     bindClick("logoutButton", teacherLogout);
     bindClick("studentSaveButton", saveStudent);
     bindClick("rewardSaveButton", saveReward);
@@ -1418,7 +1355,6 @@ function initializeTeacherPanel() {
 
     if (classSelect && !classSelect.dataset.bound) {
       classSelect.dataset.bound = "true";
-
       classSelect.addEventListener("change", updateSections);
     }
 
@@ -1495,7 +1431,6 @@ function initializeTeacherPanel() {
     }
   }
 
-  // يعمل سواء وقع DOMContentLoaded أم لا.
   if (document.readyState === "loading") {
     document.addEventListener(
       "DOMContentLoaded",
@@ -1506,7 +1441,7 @@ function initializeTeacherPanel() {
     bindTeacherEvents();
   }
 
-  /* -------------------- إتاحة الدوال عند الحاجة -------------------- */
+  /* -------------------- إتاحة الدوال لبقية الملفات -------------------- */
 
   Object.assign(window, {
     teacherLogin,
