@@ -10,7 +10,8 @@ initializeApp();
 const db = getFirestore();
 
 // ===================================
-// البحث عن الطالبة باستخدام الرمز
+// البحث المباشر في سجلات الطالبات
+// المسار الوحيد: teachers/{teacherId}/students/{studentId}
 // ===================================
 
 exports.lookupStudentByCode = onCall(
@@ -29,75 +30,46 @@ exports.lookupStudentByCode = onCall(
     }
 
     try {
-      // البحث في الفهرس المركزي للرموز.
-      const indexRef = db
-        .collection("studentCodeIndex")
-        .doc(code);
+      // البحث المباشر داخل مجموعات students فقط.
+      const snapshot = await db
+        .collectionGroup("students")
+        .where("code", "==", code)
+        .limit(2)
+        .get();
 
-      const indexSnapshot = await indexRef.get();
-
-      if (!indexSnapshot.exists) {
+      if (snapshot.empty) {
         throw new HttpsError(
           "not-found",
           "لم يتم العثور على الطالبة."
         );
       }
 
-      const index = indexSnapshot.data();
+      // منع وجود رموز مكررة لطالبات مختلفات.
+      if (snapshot.size > 1) {
+        console.error("Duplicate student code detected.");
 
-      const teacherId = index.teacherId;
-      const studentId = index.studentId;
+        throw new HttpsError(
+          "failed-precondition",
+          "يوجد تكرار في رمز الطالبة. يرجى مراجعة المعلمة."
+        );
+      }
 
-      if (
-        typeof teacherId !== "string" ||
-        typeof studentId !== "string" ||
-        !teacherId.trim() ||
-        !studentId.trim() ||
-        String(index.code || "").trim() !== code
-      ) {
-        console.error("Invalid student code index.");
+      const studentDoc = snapshot.docs[0];
+      const student = studentDoc.data();
 
+      // استخراج معرف المعلمة من مسار المستند.
+      const teacherDoc = studentDoc.ref.parent.parent;
+
+      if (!teacherDoc || teacherDoc.parent.id !== "teachers") {
         throw new HttpsError(
           "failed-precondition",
           "تعذر التحقق من سجل الطالبة."
         );
       }
 
-      // جلب سجل الطالبة من مجموعة معلمتها.
-      const studentRef = db
-        .collection("teachers")
-        .doc(teacherId)
-        .collection("students")
-        .doc(studentId);
+      const teacherId = teacherDoc.id;
+      const studentId = studentDoc.id;
 
-      const studentSnapshot = await studentRef.get();
-
-      if (!studentSnapshot.exists) {
-        throw new HttpsError(
-          "not-found",
-          "لم يتم العثور على الطالبة."
-        );
-      }
-
-      const student = studentSnapshot.data();
-
-      // التحقق من تطابق الرمز وملكية السجل.
-      if (
-        String(student.code || "").trim() !== code ||
-        (
-          student.teacherId &&
-          student.teacherId !== teacherId
-        )
-      ) {
-        console.error("Student record does not match its index.");
-
-        throw new HttpsError(
-          "failed-precondition",
-          "تعذر التحقق من سجل الطالبة."
-        );
-      }
-
-      // إرجاع البيانات اللازمة لواجهة الطالبة فقط.
       return {
         student: {
           studentId,
@@ -110,15 +82,13 @@ exports.lookupStudentByCode = onCall(
           section: String(student.section || "")
         }
       };
+
     } catch (error) {
       if (error instanceof HttpsError) {
         throw error;
       }
 
-      console.error(
-        "lookupStudentByCode failed:",
-        error
-      );
+      console.error("lookupStudentByCode failed:", error);
 
       throw new HttpsError(
         "internal",
