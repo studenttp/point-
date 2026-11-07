@@ -80,12 +80,34 @@ function getStudentDatabase() {
 // عرض رسائل البحث
 // ===================================
 
-function showSearchError(message) {
+function showSearchError(message, details = "") {
   const result = getPageElement("result");
 
   if (result) {
     result.innerHTML = `
-      <div class="error">${escapeHtml(message)}</div>
+      <div class="error">
+        <div>${escapeHtml(message)}</div>
+
+        ${
+          details
+            ? `
+              <div style="
+                margin-top: 12px;
+                padding: 10px;
+                background: #fff3f3;
+                border-radius: 8px;
+                font-size: 12px;
+                direction: ltr;
+                text-align: left;
+                overflow-wrap: anywhere;
+                color: #8b3333;
+              ">
+                ${escapeHtml(details)}
+              </div>
+            `
+            : ""
+        }
+      </div>
     `;
   }
 }
@@ -95,6 +117,7 @@ function showSearchError(message) {
 // ===================================
 
 async function searchStudent() {
+
   const codeInput = getPageElement("studentcode");
   const result = getPageElement("result");
 
@@ -124,15 +147,22 @@ async function searchStudent() {
   `;
 
   try {
+
     const db = getStudentDatabase();
 
-    // البحث في جميع المجموعات الفرعية students
-    // التابعة لمجموعة teachers.
+    // =================================
+    // البحث المباشر في سجلات الطالبات
+    // =================================
+
     const snapshot = await db
       .collectionGroup("students")
       .where("code", "==", code)
       .limit(2)
       .get();
+
+    // =================================
+    // التحقق من وجود الطالبة
+    // =================================
 
     if (snapshot.empty) {
       throw new Error("STUDENT_NOT_FOUND");
@@ -145,10 +175,12 @@ async function searchStudent() {
     const studentDoc = snapshot.docs[0];
     const student = studentDoc.data() || {};
 
-    // الحصول على مستند المعلمة المالكة للطالبة.
+    // =================================
+    // تحديد المعلمة المالكة للسجل
+    // =================================
+
     const teacherDoc = studentDoc.ref.parent.parent;
 
-    // التأكد من صحة مسار المستند.
     if (
       !teacherDoc ||
       teacherDoc.parent.id !== "teachers"
@@ -156,8 +188,13 @@ async function searchStudent() {
       throw new Error("INVALID_STUDENT_PATH");
     }
 
-    // التأكد من تطابق الرمز.
-    if (String(student.code || "").trim() !== code) {
+    // =================================
+    // التحقق من الرمز
+    // =================================
+
+    if (
+      String(student.code || "").trim() !== code
+    ) {
       throw new Error("STUDENT_CODE_MISMATCH");
     }
 
@@ -171,10 +208,12 @@ async function searchStudent() {
     window.currentStudentPoints = Number(student.points) || 0;
     window.currentTeacherId = teacherDoc.id;
     window.currentStudentClass = student.className || "";
-    window.currentStudentSection = String(student.section ?? "");
+    window.currentStudentSection = String(
+      student.section ?? ""
+    );
 
     // =================================
-    // عرض بيانات الطالبة
+    // عرض بطاقة الطالبة
     // =================================
 
     result.innerHTML = `
@@ -191,17 +230,29 @@ async function searchStudent() {
 
         ${
           window.currentStudentClass
-            ? `<p>الصف: ${escapeHtml(window.currentStudentClass)}</p>`
+            ? `
+              <p>
+                الصف:
+                ${escapeHtml(window.currentStudentClass)}
+              </p>
+            `
             : ""
         }
 
         ${
           window.currentStudentSection
-            ? `<p>الشعبة: ${escapeHtml(window.currentStudentSection)}</p>`
+            ? `
+              <p>
+                الشعبة:
+                ${escapeHtml(window.currentStudentSection)}
+              </p>
+            `
             : ""
         }
 
-        <p>${escapeHtml(student.message || "")}</p>
+        <p>
+          ${escapeHtml(student.message || "")}
+        </p>
 
       </div>
     `;
@@ -210,56 +261,106 @@ async function searchStudent() {
     refreshRewards();
 
   } catch (error) {
-    console.error("خطأ البحث بالتفصيل:", error);
+
+    // =================================
+    // تسجيل الخطأ الحقيقي
+    // =================================
+
+    console.error(
+      "Firestore Search Error:",
+      error
+    );
 
     clearStudentSession();
 
     const errorCode = String(error?.code || "");
+    const errorMessage = String(error?.message || "");
+
     let message =
-      "تعذر البحث عن الطالبة حاليًا. يرجى المحاولة مرة أخرى.";
+      "تعذر البحث عن الطالبة حاليًا.";
 
-    if (error.message === "FIREBASE_NOT_INITIALIZED") {
+    let details = "";
+
+    // =================================
+    // تحديد نوع الخطأ
+    // =================================
+
+    if (
+      errorMessage === "FIREBASE_NOT_INITIALIZED"
+    ) {
+
       message =
-        "لم يتم الاتصال بقاعدة بيانات Firebase. تحققي من تحميل firebase.js قبل script.js.";
+        "لم يتم الاتصال بقاعدة بيانات Firebase.";
 
-    } else if (error.message === "STUDENT_NOT_FOUND") {
+      details =
+        "تحققي من تحميل firebase.js قبل script.js.";
+
+    } else if (
+      errorMessage === "STUDENT_NOT_FOUND"
+    ) {
+
       message =
-        "لم يتم العثور على طالبة بهذا الرمز. تحققي من الرمز وحاولي مرة أخرى.";
+        "لم يتم العثور على طالبة بهذا الرمز.";
 
-    } else if (error.message === "DUPLICATE_STUDENT_CODE") {
+    } else if (
+      errorMessage === "DUPLICATE_STUDENT_CODE"
+    ) {
+
       message =
         "هذا الرمز مرتبط بأكثر من سجل. يرجى مراجعة المعلمة.";
 
     } else if (
-      error.message === "INVALID_STUDENT_PATH" ||
-      error.message === "STUDENT_CODE_MISMATCH"
+      errorMessage === "INVALID_STUDENT_PATH" ||
+      errorMessage === "STUDENT_CODE_MISMATCH"
     ) {
+
       message =
-        "تعذر التحقق من سجل الطالبة. يرجى مراجعة المعلمة.";
+        "تعذر التحقق من سجل الطالبة.";
 
     } else if (
       errorCode.includes("permission-denied") ||
       errorCode.includes("unauthenticated")
     ) {
+
       message =
-        "رفضت قواعد Firestore عملية البحث. تحققي من نشر قواعد القراءة لسجلات الطالبات.";
+        "رفضت قواعد Firestore عملية البحث.";
+
+      details = errorMessage;
+
+    } else if (
+      errorCode.includes("failed-precondition")
+    ) {
+
+      message =
+        "الاستعلام يحتاج إلى فهرس في Firestore أو توجد مشكلة في إعداداته.";
+
+      details = errorMessage;
 
     } else if (
       errorCode.includes("unavailable") ||
       errorCode.includes("deadline-exceeded")
     ) {
-      message =
-        "تعذر الاتصال بقاعدة البيانات. تحققي من الإنترنت ثم حاولي مجددًا.";
 
-    } else if (
-      errorCode.includes("failed-precondition")
-    ) {
       message =
-        "تعذر تنفيذ البحث. تحققي من تفعيل فهرس مجموعة المجموعات للحقل code.";
+        "تعذر الاتصال بقاعدة البيانات. تحققي من الإنترنت.";
 
+      details = errorMessage;
+
+    } else {
+
+      message =
+        "حدث خطأ أثناء البحث. تفاصيل الخطأ:";
+
+      details =
+        errorCode + " | " + errorMessage;
     }
 
-    showSearchError(message);
+    // =================================
+    // عرض الخطأ
+    // =================================
+
+    showSearchError(message, details);
+
     refreshRewards();
     playError();
   }
@@ -270,6 +371,7 @@ async function searchStudent() {
 // ===================================
 
 function clearStudentSession() {
+
   window.currentStudentId = null;
   window.currentStudentCode = null;
   window.currentStudentName = null;
@@ -284,17 +386,31 @@ function clearStudentSession() {
 // ===================================
 
 function refreshRewards() {
+
   if (typeof window.loadRewards === "function") {
+
     try {
+
       const task = window.loadRewards();
 
-      if (task && typeof task.catch === "function") {
+      if (
+        task &&
+        typeof task.catch === "function"
+      ) {
         task.catch(error => {
-          console.error("تعذر تحديث متجر المكافآت:", error);
+          console.error(
+            "تعذر تحديث متجر المكافآت:",
+            error
+          );
         });
       }
+
     } catch (error) {
-      console.error("تعذر تحديث متجر المكافآت:", error);
+
+      console.error(
+        "تعذر تحديث متجر المكافآت:",
+        error
+      );
     }
   }
 }
@@ -321,20 +437,33 @@ function playMagic() {
 }
 
 function playAudio(audio) {
+
   if (!audio) return;
 
   try {
+
     audio.currentTime = 0;
 
     const playback = audio.play();
 
-    if (playback && typeof playback.catch === "function") {
+    if (
+      playback &&
+      typeof playback.catch === "function"
+    ) {
       playback.catch(error => {
-        console.warn("تعذر تشغيل الصوت:", error);
+        console.warn(
+          "تعذر تشغيل الصوت:",
+          error
+        );
       });
     }
+
   } catch (error) {
-    console.warn("حدث خطأ أثناء تشغيل الصوت:", error);
+
+    console.warn(
+      "حدث خطأ أثناء تشغيل الصوت:",
+      error
+    );
   }
 }
 
@@ -343,6 +472,7 @@ function playAudio(audio) {
 // ===================================
 
 function setStarStudent() {
+
   const starStudent = getPageElement("starStudent");
 
   if (starStudent) {
@@ -355,6 +485,7 @@ function setStarStudent() {
 // ===================================
 
 function setupPageSounds() {
+
   setStarStudent();
 
   const startBtn = document.querySelector(".start-btn");
@@ -362,34 +493,58 @@ function setupPageSounds() {
   const searchForm = getPageElement("studentSearchForm");
   const title = document.querySelector(".hero-title");
 
-  if (startBtn && !startBtn.dataset.soundBound) {
+  if (
+    startBtn &&
+    !startBtn.dataset.soundBound
+  ) {
+
     startBtn.dataset.soundBound = "true";
     startBtn.addEventListener("click", playClick);
   }
 
-  if (searchBtn && !searchBtn.dataset.soundBound) {
+  if (
+    searchBtn &&
+    !searchBtn.dataset.soundBound
+  ) {
+
     searchBtn.dataset.soundBound = "true";
     searchBtn.addEventListener("click", playClick);
   }
 
-  if (searchForm && !searchForm.dataset.searchBound) {
+  if (
+    searchForm &&
+    !searchForm.dataset.searchBound
+  ) {
+
     searchForm.dataset.searchBound = "true";
 
     searchForm.addEventListener("submit", event => {
+
       event.preventDefault();
       searchStudent();
+
     });
 
-  } else if (searchBtn && !searchBtn.dataset.searchBound) {
+  } else if (
+    searchBtn &&
+    !searchBtn.dataset.searchBound
+  ) {
+
     searchBtn.dataset.searchBound = "true";
 
     searchBtn.addEventListener("click", event => {
+
       event.preventDefault();
       searchStudent();
+
     });
   }
 
-  if (title && !title.dataset.titleSoundBound) {
+  if (
+    title &&
+    !title.dataset.titleSoundBound
+  ) {
+
     title.dataset.titleSoundBound = "true";
 
     title.addEventListener("click", () => {
@@ -417,11 +572,15 @@ window.playMagic = playMagic;
 // ===================================
 
 if (document.readyState === "loading") {
+
   document.addEventListener(
     "DOMContentLoaded",
     setupPageSounds,
     { once: true }
   );
+
 } else {
+
   setupPageSounds();
+
 }
