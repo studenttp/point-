@@ -210,11 +210,12 @@ async function loadRewards() {
         );
 
         list.innerHTML = `
-            <div class="message">
-                ❌ تعذر تحميل المكافآت.
-                تحققي من الاتصال وقواعد Firestore.
-            </div>
-        `;
+    <div class="message" style="direction:ltr;text-align:left;">
+        <strong>Reward Loading Error</strong>
+        <p>${rewardEscape(error.code || "UNKNOWN")}</p>
+        <p>${rewardEscape(error.message || String(error))}</p>
+    </div>
+`;
     }
 }
 
