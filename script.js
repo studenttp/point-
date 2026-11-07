@@ -1,12 +1,10 @@
-
 /* =========================================================
    نجوم صفي - script.js
 
-   البحث الآمن عن الطالبة عبر Firebase Cloud Functions.
-
-   مصدر البيانات الوحيد:
+   البحث المباشر عن الطالبة داخل:
    teachers/{teacherId}/students/{studentId}
 
+   لا يستخدم Cloud Functions.
    لا يستخدم studentCodeIndex.
    ========================================================= */
 
@@ -55,17 +53,11 @@ function escapeHtml(text) {
     .replace(/'/g, "&#039;");
 }
 
-// ===================================
-// الاتصال بـ Firebase Cloud Functions
-// ===================================
-
-function getStudentFunctions() {
-  // استخدام الخدمة المهيأة في firebase.js.
-  if (window.studentFunctions) {
-    return window.studentFunctions;
+function getStudentDatabase() {
+  if (window.db) {
+    return window.db;
   }
 
-  // محاولة الحصول على الخدمة من التطبيق الافتراضي.
   if (
     window.firebase &&
     window.firebase.apps &&
@@ -76,11 +68,11 @@ function getStudentFunctions() {
     );
 
     if (defaultApp) {
-      return defaultApp.functions("us-central1");
+      return defaultApp.firestore();
     }
   }
 
-  throw new Error("FIREBASE_FUNCTIONS_NOT_INITIALIZED");
+  throw new Error("FIREBASE_NOT_INITIALIZED");
 }
 
 // ===================================
@@ -98,7 +90,7 @@ function showSearchError(message) {
 }
 
 // ===================================
-// البحث عن الطالبة
+// البحث عن الطالبة مباشرة في Firestore
 // ===================================
 
 async function searchStudent() {
@@ -112,17 +104,13 @@ async function searchStudent() {
     return;
   }
 
-  // قراءة رمز الطالبة.
   const code = String(codeInput.value || "").trim();
 
   if (!code) {
     clearStudentSession();
-
     showSearchError("يرجى إدخال رمز الطالبة.");
-
     refreshRewards();
     playError();
-
     return;
   }
 
@@ -135,27 +123,38 @@ async function searchStudent() {
   `;
 
   try {
-    // الحصول على Firebase Functions.
-    const functions = getStudentFunctions();
+    const db = getStudentDatabase();
 
-    // استدعاء دالة البحث الآمن.
-    const lookupStudent = functions.httpsCallable(
-      "lookupStudentByCode"
-    );
+    // البحث في جميع المجموعات الفرعية المسماة students،
+    // ومصدر البيانات هو teachers/{teacherId}/students/{studentId}.
+    const snapshot = await db
+      .collectionGroup("students")
+      .where("code", "==", code)
+      .limit(2)
+      .get();
 
-    // إرسال الرمز إلى الخادم.
-    const response = await lookupStudent({
-      code: code
-    });
-
-    // قراءة النتيجة.
-    const student = response?.data?.student;
-
-    if (!student || !student.studentId || !student.teacherId) {
-      throw new Error("INVALID_STUDENT_RESPONSE");
+    if (snapshot.empty) {
+      throw new Error("STUDENT_NOT_FOUND");
     }
 
-    // التأكد من تطابق الرمز.
+    // الرمز يجب أن يشير إلى سجل واحد فقط.
+    if (snapshot.size > 1) {
+      throw new Error("DUPLICATE_STUDENT_CODE");
+    }
+
+    const studentDoc = snapshot.docs[0];
+    const student = studentDoc.data() || {};
+    const teacherDoc = studentDoc.ref.parent.parent;
+
+    // التأكد من أن المستند موجود داخل teachers/{teacherId}/students.
+    if (
+      !teacherDoc ||
+      teacherDoc.parent.id !== "teachers"
+    ) {
+      throw new Error("INVALID_STUDENT_PATH");
+    }
+
+    // التأكد من تطابق الرمز بعد قراءة المستند.
     if (String(student.code || "").trim() !== code) {
       throw new Error("STUDENT_CODE_MISMATCH");
     }
@@ -164,17 +163,13 @@ async function searchStudent() {
     // حفظ بيانات الطالبة
     // =================================
 
-    window.currentStudentId = student.studentId;
+    window.currentStudentId = studentDoc.id;
     window.currentStudentCode = code;
     window.currentStudentName = student.name || "الطالبة";
     window.currentStudentPoints = Number(student.points) || 0;
-    window.currentTeacherId = student.teacherId;
-
+    window.currentTeacherId = teacherDoc.id;
     window.currentStudentClass = student.className || "";
-
-    window.currentStudentSection = String(
-      student.section ?? ""
-    );
+    window.currentStudentSection = String(student.section ?? "");
 
     // =================================
     // عرض بيانات الطالبة
@@ -182,39 +177,28 @@ async function searchStudent() {
 
     result.innerHTML = `
       <div class="student-card">
-
         <h2>
           🌟 ${escapeHtml(window.currentStudentName)}
         </h2>
 
         <div class="points">
           🏆 مجموع النقاط
-
-          <h1>
-            ${window.currentStudentPoints}
-          </h1>
+          <h1>${window.currentStudentPoints}</h1>
         </div>
 
         ${
           window.currentStudentClass
-            ? `<p>الصف: ${escapeHtml(
-                window.currentStudentClass
-              )}</p>`
+            ? `<p>الصف: ${escapeHtml(window.currentStudentClass)}</p>`
             : ""
         }
 
         ${
           window.currentStudentSection
-            ? `<p>الشعبة: ${escapeHtml(
-                window.currentStudentSection
-              )}</p>`
+            ? `<p>الشعبة: ${escapeHtml(window.currentStudentSection)}</p>`
             : ""
         }
 
-        <p>
-          ${escapeHtml(student.message || "")}
-        </p>
-
+        <p>${escapeHtml(student.message || "")}</p>
       </div>
     `;
 
@@ -222,11 +206,6 @@ async function searchStudent() {
     refreshRewards();
 
   } catch (error) {
-
-    // =================================
-    // معالجة الأخطاء
-    // =================================
-
     console.error("خطأ البحث بالتفصيل:", error);
 
     clearStudentSession();
@@ -235,67 +214,48 @@ async function searchStudent() {
     let message =
       "تعذر البحث عن الطالبة حاليًا. يرجى المحاولة مرة أخرى.";
 
-    if (error.message === "FIREBASE_FUNCTIONS_NOT_INITIALIZED") {
+    if (error.message === "FIREBASE_NOT_INITIALIZED") {
       message =
-        "خدمة البحث غير مهيأة. تحققي من تحميل ملف Firebase وإعداد Cloud Functions.";
+        "لم يتم الاتصال بقاعدة بيانات Firebase. تحققي من تحميل ملف firebase.js قبل script.js.";
 
-    } else if (error.message === "INVALID_STUDENT_RESPONSE") {
-      message =
-        "وصلت استجابة غير مكتملة من قاعدة البيانات. يرجى مراجعة المعلمة.";
-
-    } else if (error.message === "STUDENT_CODE_MISMATCH") {
-      message =
-        "تعذر التحقق من رمز الطالبة. يرجى مراجعة المعلمة.";
-
-    } else if (
-      errorCode.includes("not-found") ||
-      errorCode.includes("functions/not-found")
-    ) {
+    } else if (error.message === "STUDENT_NOT_FOUND") {
       message =
         "لم يتم العثور على طالبة بهذا الرمز. تحققي من الرمز وحاولي مرة أخرى.";
 
-    } else if (
-      errorCode.includes("invalid-argument")
-    ) {
+    } else if (error.message === "DUPLICATE_STUDENT_CODE") {
       message =
-        "رمز الطالبة غير صحيح. تحققي من الرمز وحاولي مرة أخرى.";
+        "هذا الرمز مرتبط بأكثر من سجل. يرجى مراجعة المعلمة.";
 
     } else if (
-      errorCode.includes("failed-precondition")
+      error.message === "INVALID_STUDENT_PATH" ||
+      error.message === "STUDENT_CODE_MISMATCH"
     ) {
       message =
-        error.message ||
         "تعذر التحقق من سجل الطالبة. يرجى مراجعة المعلمة.";
 
     } else if (
-      errorCode.includes("unauthenticated") ||
-      errorCode.includes("permission-denied")
+      errorCode.includes("permission-denied") ||
+      errorCode.includes("unauthenticated")
     ) {
       message =
-        "تعذر التحقق من صلاحية طلب البحث. تحققي من إعدادات Firebase App Check.";
+        "رفضت قواعد Firestore عملية البحث. القواعد الحالية لا تسمح بقراءة سجلات الطالبات من دون تسجيل دخول.";
 
     } else if (
       errorCode.includes("unavailable") ||
       errorCode.includes("deadline-exceeded")
     ) {
       message =
-        "تعذر الاتصال بالخدمة. تحققي من الإنترنت ثم حاولي مجددًا.";
+        "تعذر الاتصال بقاعدة البيانات. تحققي من الإنترنت ثم حاولي مجددًا.";
 
     } else if (
-      errorCode.includes("internal")
+      errorCode.includes("failed-precondition")
     ) {
       message =
-        "حدث خطأ في خدمة البحث. يرجى المحاولة لاحقًا.";
+        "تعذر تنفيذ الاستعلام. تحققي من إعدادات Firestore والفهارس المطلوبة.";
 
-    } else if (
-      errorCode.includes("app-check")
-    ) {
-      message =
-        "تعذر التحقق من التطبيق. تحققي من إعدادات Firebase App Check.";
     }
 
     showSearchError(message);
-
     refreshRewards();
     playError();
   }
@@ -326,18 +286,11 @@ function refreshRewards() {
 
       if (task && typeof task.catch === "function") {
         task.catch(error => {
-          console.error(
-            "تعذر تحديث متجر المكافآت:",
-            error
-          );
+          console.error("تعذر تحديث متجر المكافآت:", error);
         });
       }
-
     } catch (error) {
-      console.error(
-        "تعذر تحديث متجر المكافآت:",
-        error
-      );
+      console.error("تعذر تحديث متجر المكافآت:", error);
     }
   }
 }
@@ -368,7 +321,6 @@ function playAudio(audio) {
 
   try {
     audio.currentTime = 0;
-
     const playback = audio.play();
 
     if (playback && typeof playback.catch === "function") {
@@ -376,12 +328,8 @@ function playAudio(audio) {
         console.warn("تعذر تشغيل الصوت:", error);
       });
     }
-
   } catch (error) {
-    console.warn(
-      "حدث خطأ أثناء تشغيل الصوت:",
-      error
-    );
+    console.warn("حدث خطأ أثناء تشغيل الصوت:", error);
   }
 }
 
@@ -409,19 +357,16 @@ function setupPageSounds() {
   const searchForm = getPageElement("studentSearchForm");
   const title = document.querySelector(".hero-title");
 
-  // صوت زر البداية.
   if (startBtn && !startBtn.dataset.soundBound) {
     startBtn.dataset.soundBound = "true";
     startBtn.addEventListener("click", playClick);
   }
 
-  // صوت زر البحث.
   if (searchBtn && !searchBtn.dataset.soundBound) {
     searchBtn.dataset.soundBound = "true";
     searchBtn.addEventListener("click", playClick);
   }
 
-  // ربط البحث بالنموذج.
   if (searchForm && !searchForm.dataset.searchBound) {
     searchForm.dataset.searchBound = "true";
 
@@ -431,7 +376,6 @@ function setupPageSounds() {
     });
 
   } else if (searchBtn && !searchBtn.dataset.searchBound) {
-
     searchBtn.dataset.searchBound = "true";
 
     searchBtn.addEventListener("click", event => {
@@ -440,7 +384,6 @@ function setupPageSounds() {
     });
   }
 
-  // صوت عنوان الموقع.
   if (title && !title.dataset.titleSoundBound) {
     title.dataset.titleSoundBound = "true";
 
@@ -469,15 +412,11 @@ window.playMagic = playMagic;
 // ===================================
 
 if (document.readyState === "loading") {
-
   document.addEventListener(
     "DOMContentLoaded",
     setupPageSounds,
     { once: true }
   );
-
 } else {
-
   setupPageSounds();
-
 }
