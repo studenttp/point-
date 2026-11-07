@@ -19,12 +19,22 @@
 // =====================================
 
 function getRewardsDB() {
-    if (typeof window.getStudentDatabase === "function") {
-        return window.getStudentDatabase();
-    }
-
     if (window.db) {
         return window.db;
+    }
+
+    if (
+        window.firebase &&
+        window.firebase.apps &&
+        window.firebase.apps.length
+    ) {
+        const defaultApp = window.firebase.apps.find(
+            app => app.name === "[DEFAULT]"
+        );
+
+        if (defaultApp) {
+            return defaultApp.firestore();
+        }
     }
 
     throw new Error("FIREBASE_NOT_INITIALIZED");
@@ -210,12 +220,12 @@ async function loadRewards() {
         );
 
         list.innerHTML = `
-    <div class="message" style="direction:ltr;text-align:left;">
-        <strong>Reward Loading Error</strong>
-        <p>${rewardEscape(error.code || "UNKNOWN")}</p>
-        <p>${rewardEscape(error.message || String(error))}</p>
-    </div>
-`;
+            <div class="message" style="direction:ltr;text-align:left;">
+                <strong>Reward Loading Error</strong>
+                <p>${rewardEscape(error.code || "UNKNOWN")}</p>
+                <p>${rewardEscape(error.message || String(error))}</p>
+            </div>
+        `;
     }
 }
 
@@ -232,6 +242,13 @@ async function redeemReward(rewardId) {
         if (!student.id || !student.teacherId) {
 
             alert("🔐 أدخلي رمز الطالبة أولًا.");
+
+            return;
+        }
+
+        if (!student.className || !student.section) {
+
+            alert("❌ تعذر تحديد صفك وشعبتك. أعيدي البحث عن رمز الطالبة.");
 
             return;
         }
@@ -264,42 +281,18 @@ async function redeemReward(rewardId) {
             return;
         }
 
-        const price = Number(reward.price) || 0;
+        const price = Number(reward.price);
 
-        if (student.points < price) {
+        if (!Number.isSafeInteger(price) || price <= 0) {
 
-            alert("⭐ نقاطك غير كافية للحصول على هذه المكافأة.");
+            alert("❌ قيمة نقاط المكافأة غير صحيحة.");
 
             return;
         }
 
-        // =================================
-        // التحقق من الطلبات السابقة
-        // =================================
+        if (student.points < price) {
 
-        const requestsRef = getTeacherRequestsRef();
-
-        const requestsSnapshot = await requestsRef
-            .where("studentId", "==", student.id)
-            .get();
-
-        let alreadyPending = false;
-
-        requestsSnapshot.forEach(doc => {
-
-            const request = doc.data();
-
-            if (
-                request.rewardId === rewardId &&
-                request.status === "pending"
-            ) {
-                alreadyPending = true;
-            }
-        });
-
-        if (alreadyPending) {
-
-            alert("⏳ لديك طلب معلق لهذه المكافأة بالفعل.");
+            alert("⭐ نقاطك غير كافية للحصول على هذه المكافأة.");
 
             return;
         }
@@ -319,26 +312,29 @@ async function redeemReward(rewardId) {
         if (!confirmed) return;
 
         // =================================
-        // إنشاء الطلب في مجلد المعلمة
+        // إنشاء الطلب في مجموعة المعلمة
+        // دون قراءة الطلبات السابقة
         // =================================
+
+        const requestsRef = getTeacherRequestsRef();
 
         await requestsRef.add({
 
-            studentId: student.id,
+            studentId: String(student.id),
 
-            studentCode: student.code,
+            studentCode: String(student.code || ""),
 
-            studentName: student.name,
+            studentName: String(student.name || "الطالبة"),
 
-            teacherId: student.teacherId,
+            teacherId: String(student.teacherId),
 
-            className: student.className,
+            className: String(student.className),
 
-            section: student.section,
+            section: String(student.section),
 
-            rewardId: rewardId,
+            rewardId: String(rewardId),
 
-            rewardName: reward.name,
+            rewardName: String(reward.name || "مكافأة"),
 
             price: price,
 
@@ -354,8 +350,6 @@ async function redeemReward(rewardId) {
             "انتظري موافقتها، ولن تُخصم النقاط إلا بعد الموافقة."
         );
 
-        await loadRewards();
-
     } catch (error) {
 
         console.error(
@@ -363,9 +357,22 @@ async function redeemReward(rewardId) {
             error
         );
 
+        let message = error.message || "خطأ غير معروف";
+
+        if (error.code === "permission-denied") {
+            message =
+                "رفضت قواعد Firestore إرسال الطلب. تحققي من صلاحيات إنشاء طلبات الاستبدال.";
+        } else if (error.message === "FIREBASE_NOT_INITIALIZED") {
+            message =
+                "تعذر الاتصال بقاعدة البيانات.";
+        } else if (error.message === "STUDENT_NOT_FOUND") {
+            message =
+                "تعذر تحديد المعلمة المرتبطة بالطالبة. أعيدي البحث عن الرمز.";
+        }
+
         alert(
-            "❌ تعذر إرسال طلب المكافأة.\n" +
-            "السبب: " + (error.message || "خطأ غير معروف")
+            "❌ تعذر إرسال طلب المكافأة.\n\n" +
+            "السبب: " + message
         );
     }
 }
