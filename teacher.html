@@ -327,6 +327,45 @@
       <div id="studentsList">اختاري الصف والشعبة لعرض الطالبات.</div>
     </section>
 
+
+<!-- إدارة نجم الشهر -->
+<section class="panel" id="monthlyStarManager">
+  <h2>🏆 إدارة نجم الشهر</h2>
+
+  <p class="section-description">
+    اختاري الطالبة المتميزة في الصف والشعبة المحددين.
+  </p>
+
+  <div class="login-form-group">
+    <label for="monthlyStarStudent">الطالبة الفائزة</label>
+    <select id="monthlyStarStudent">
+      <option value="">اختاري الطالبة</option>
+    </select>
+  </div>
+
+  <div class="form-actions">
+    <button
+      type="button"
+      class="main-button"
+      id="saveMonthlyStarButton">
+      🏆 اعتماد نجم الشهر
+    </button>
+
+    <button
+      type="button"
+      class="cancel-button"
+      id="clearMonthlyStarButton">
+      إزالة نجم الشهر
+    </button>
+  </div>
+
+  <div id="monthlyStarStatus" role="status" aria-live="polite"></div>
+
+  <div id="currentMonthlyStar">
+    لم يتم اختيار نجم الشهر لهذه الشعبة بعد.
+  </div>
+</section>
+
     <!-- الملفات الموحدة -->
     <section class="panel" aria-labelledby="unifiedStudentsTitle">
       <h2 id="unifiedStudentsTitle">👤 ملفات الطالبات الموحدة</h2>
