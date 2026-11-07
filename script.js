@@ -1,3 +1,4 @@
+
 /* =========================================================
    نجوم صفي - script.js
 
@@ -90,7 +91,7 @@ function showSearchError(message) {
 }
 
 // ===================================
-// البحث عن الطالبة مباشرة في Firestore
+// البحث المباشر عن الطالبة
 // ===================================
 
 async function searchStudent() {
@@ -125,8 +126,8 @@ async function searchStudent() {
   try {
     const db = getStudentDatabase();
 
-    // البحث في جميع المجموعات الفرعية المسماة students،
-    // ومصدر البيانات هو teachers/{teacherId}/students/{studentId}.
+    // البحث في جميع المجموعات الفرعية students
+    // التابعة لمجموعة teachers.
     const snapshot = await db
       .collectionGroup("students")
       .where("code", "==", code)
@@ -137,16 +138,17 @@ async function searchStudent() {
       throw new Error("STUDENT_NOT_FOUND");
     }
 
-    // الرمز يجب أن يشير إلى سجل واحد فقط.
     if (snapshot.size > 1) {
       throw new Error("DUPLICATE_STUDENT_CODE");
     }
 
     const studentDoc = snapshot.docs[0];
     const student = studentDoc.data() || {};
+
+    // الحصول على مستند المعلمة المالكة للطالبة.
     const teacherDoc = studentDoc.ref.parent.parent;
 
-    // التأكد من أن المستند موجود داخل teachers/{teacherId}/students.
+    // التأكد من صحة مسار المستند.
     if (
       !teacherDoc ||
       teacherDoc.parent.id !== "teachers"
@@ -154,7 +156,7 @@ async function searchStudent() {
       throw new Error("INVALID_STUDENT_PATH");
     }
 
-    // التأكد من تطابق الرمز بعد قراءة المستند.
+    // التأكد من تطابق الرمز.
     if (String(student.code || "").trim() !== code) {
       throw new Error("STUDENT_CODE_MISMATCH");
     }
@@ -177,6 +179,7 @@ async function searchStudent() {
 
     result.innerHTML = `
       <div class="student-card">
+
         <h2>
           🌟 ${escapeHtml(window.currentStudentName)}
         </h2>
@@ -199,6 +202,7 @@ async function searchStudent() {
         }
 
         <p>${escapeHtml(student.message || "")}</p>
+
       </div>
     `;
 
@@ -216,7 +220,7 @@ async function searchStudent() {
 
     if (error.message === "FIREBASE_NOT_INITIALIZED") {
       message =
-        "لم يتم الاتصال بقاعدة بيانات Firebase. تحققي من تحميل ملف firebase.js قبل script.js.";
+        "لم يتم الاتصال بقاعدة بيانات Firebase. تحققي من تحميل firebase.js قبل script.js.";
 
     } else if (error.message === "STUDENT_NOT_FOUND") {
       message =
@@ -238,7 +242,7 @@ async function searchStudent() {
       errorCode.includes("unauthenticated")
     ) {
       message =
-        "رفضت قواعد Firestore عملية البحث. القواعد الحالية لا تسمح بقراءة سجلات الطالبات من دون تسجيل دخول.";
+        "رفضت قواعد Firestore عملية البحث. تحققي من نشر قواعد القراءة لسجلات الطالبات.";
 
     } else if (
       errorCode.includes("unavailable") ||
@@ -251,7 +255,7 @@ async function searchStudent() {
       errorCode.includes("failed-precondition")
     ) {
       message =
-        "تعذر تنفيذ الاستعلام. تحققي من إعدادات Firestore والفهارس المطلوبة.";
+        "تعذر تنفيذ البحث. تحققي من تفعيل فهرس مجموعة المجموعات للحقل code.";
 
     }
 
@@ -321,6 +325,7 @@ function playAudio(audio) {
 
   try {
     audio.currentTime = 0;
+
     const playback = audio.play();
 
     if (playback && typeof playback.catch === "function") {
