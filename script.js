@@ -5,6 +5,9 @@
    البحث المباشر عن الطالبة داخل:
    teachers/{teacherId}/students/{studentId}
 
+   نجم الشهر داخل:
+   teachers/{teacherId}/monthlyStars/{class}__{section}
+
    لا يستخدم Cloud Functions.
    لا يستخدم studentCodeIndex.
    ========================================================= */
@@ -109,6 +112,78 @@ function showSearchError(message, details = "") {
         }
       </div>
     `;
+  }
+}
+
+// ===================================
+// اسم نجم الشهر
+// ===================================
+
+function setStarStudent() {
+  const starStudent = getPageElement("starStudent");
+
+  if (starStudent) {
+    starStudent.textContent = "سيتم تحديده لاحقًا";
+  }
+}
+
+// ===================================
+// تحميل نجم الشهر حسب الصف والشعبة
+// ===================================
+
+async function loadMonthlyStarForStudent() {
+  const starStudent = getPageElement("starStudent");
+
+  if (!starStudent) {
+    console.warn(
+      "[نجوم صفي] لم يتم العثور على العنصر starStudent."
+    );
+    return;
+  }
+
+  const teacherId = window.currentTeacherId;
+  const className = window.currentStudentClass;
+  const section = window.currentStudentSection;
+
+  if (!teacherId || !className || !section) {
+    setStarStudent();
+    return;
+  }
+
+  try {
+    const db = getStudentDatabase();
+
+    // يجب أن يطابق هذا المعرّف طريقة الحفظ في teacher.js
+    const documentId =
+      encodeURIComponent(className) +
+      "__" +
+      encodeURIComponent(String(section));
+
+    const snapshot = await db
+      .collection("teachers")
+      .doc(teacherId)
+      .collection("monthlyStars")
+      .doc(documentId)
+      .get();
+
+    // إذا لم يتم اعتماد نجم لهذه الشعبة
+    if (!snapshot.exists) {
+      setStarStudent();
+      return;
+    }
+
+    const star = snapshot.data() || {};
+
+    starStudent.textContent =
+      star.studentName || "سيتم تحديده لاحقًا";
+
+  } catch (error) {
+    console.error(
+      "[نجوم صفي] تعذر تحميل نجم الشهر:",
+      error
+    );
+
+    setStarStudent();
   }
 }
 
@@ -257,6 +332,9 @@ async function searchStudent() {
       </div>
     `;
 
+    // تحميل نجم الشهر الخاص بصف وشعبة الطالبة
+    await loadMonthlyStarForStudent();
+
     playSuccess();
     refreshRewards();
 
@@ -379,6 +457,9 @@ function clearStudentSession() {
   window.currentTeacherId = null;
   window.currentStudentClass = "";
   window.currentStudentSection = "";
+
+  // إعادة الاسم الافتراضي عند مسح الجلسة
+  setStarStudent();
 }
 
 // ===================================
@@ -468,19 +549,6 @@ function playAudio(audio) {
 }
 
 // ===================================
-// اسم نجم الشهر
-// ===================================
-
-function setStarStudent() {
-
-  const starStudent = getPageElement("starStudent");
-
-  if (starStudent) {
-    starStudent.textContent = "سيتم تحديده لاحقًا";
-  }
-}
-
-// ===================================
 // إعداد أصوات الصفحة وربط البحث
 // ===================================
 
@@ -561,6 +629,7 @@ window.searchStudent = searchStudent;
 window.escapeHtml = escapeHtml;
 window.clearStudentSession = clearStudentSession;
 window.refreshRewards = refreshRewards;
+window.loadMonthlyStarForStudent = loadMonthlyStarForStudent;
 
 window.playSuccess = playSuccess;
 window.playError = playError;
