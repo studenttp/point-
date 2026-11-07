@@ -3,10 +3,11 @@
    نجوم صفي - teacher.js
    Firebase Compat SDK
 
-   مصدر بيانات الطالبات الوحيد:
+   مصدر بيانات الطالبات:
    teachers/{teacherId}/students/{studentId}
 
-   لا يستخدم studentCodeIndex نهائيًا.
+   إدارة نجم الشهر:
+   teachers/{teacherId}/monthlyStars/{class}__{section}
    ========================================================= */
 
 "use strict";
@@ -116,43 +117,30 @@ function initializeTeacherPanel() {
     const messages = {
       "auth/invalid-credential":
         "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
-
       "auth/wrong-password":
         "كلمة المرور غير صحيحة.",
-
       "auth/user-not-found":
         "لا يوجد حساب بهذا البريد الإلكتروني.",
-
       "auth/invalid-email":
         "صيغة البريد الإلكتروني غير صحيحة.",
-
       "auth/email-already-in-use":
         "هذا البريد الإلكتروني مسجل مسبقًا.",
-
       "auth/weak-password":
         "كلمة المرور ضعيفة. استخدمي 8 أحرف على الأقل.",
-
       "auth/too-many-requests":
         "محاولات كثيرة. انتظري قليلًا ثم حاولي مجددًا.",
-
       "auth/network-request-failed":
         "تعذر الاتصال بالإنترنت. تحققي من الاتصال.",
-
       "auth/operation-not-allowed":
         "هذه الخدمة غير مفعّلة في إعدادات Firebase Authentication.",
-
       "auth/unauthorized-continue-uri":
         "عنوان الموقع غير مسموح به في إعدادات Firebase.",
-
       "auth/invalid-continue-uri":
         "رابط إعادة التعيين غير صحيح.",
-
       "permission-denied":
         "لا توجد صلاحية للعملية. تحققي من قواعد Firestore.",
-
       "unavailable":
         "الخدمة غير متاحة مؤقتًا. حاولي مجددًا.",
-
       "failed-precondition":
         "تعذر تنفيذ العملية بسبب إعدادات قاعدة البيانات."
     };
@@ -169,7 +157,6 @@ function initializeTeacherPanel() {
 
   function teacherRef() {
     requireTeacher();
-
     return db.collection("teachers").doc(currentTeacher.uid);
   }
 
@@ -183,6 +170,17 @@ function initializeTeacherPanel() {
 
   function requestsRef() {
     return teacherRef().collection("rewardRequests");
+  }
+
+  // مجموعة نجم الشهر الخاصة بالمعلمة
+  function monthlyStarsRef() {
+    return teacherRef().collection("monthlyStars");
+  }
+
+  // معرّف مستقل لكل صف وشعبة
+  function monthlyStarDocumentId(className, section) {
+    return encodeURIComponent(className) + "__" +
+      encodeURIComponent(String(section));
   }
 
   function activeClass() {
@@ -307,6 +305,205 @@ function initializeTeacherPanel() {
     renderStudents();
     renderRewards();
     renderRewardRequests();
+
+    loadMonthlyStar();
+  }
+
+  /* -------------------- إدارة نجم الشهر -------------------- */
+
+  async function loadMonthlyStar() {
+    const select = el("monthlyStarStudent");
+    const display = el("currentMonthlyStar");
+
+    if (!select || !display) return;
+
+    const className = activeClass();
+    const section = activeSection();
+
+    if (!className || !section || !currentTeacher) {
+      select.innerHTML =
+        '<option value="">اختاري الصف والشعبة أولًا</option>';
+
+      display.textContent =
+        "اختاري الصف والشعبة لعرض نجم الشهر.";
+
+      return;
+    }
+
+    // عرض طالبات الصف والشعبة المختارين
+    const students = studentsCache.filter(student =>
+      student.className === className &&
+      String(student.section) === String(section)
+    );
+
+    select.innerHTML =
+      '<option value="">اختاري الطالبة</option>' +
+      students.map(student =>
+        `<option value="${escapeHTML(student.id)}">${escapeHTML(student.name)}</option>`
+      ).join("");
+
+    try {
+      const docId = monthlyStarDocumentId(className, section);
+
+      const snapshot = await monthlyStarsRef()
+        .doc(docId)
+        .get();
+
+      if (!snapshot.exists) {
+        display.textContent =
+          "لم يتم اختيار نجم الشهر لهذه الشعبة بعد.";
+
+        select.value = "";
+        return;
+      }
+
+      const star = snapshot.data() || {};
+
+      // التحقق من أن الفائزة ما زالت ضمن الشعبة
+      const existingStudent = students.find(
+        student => student.id === star.studentId
+      );
+
+      if (!existingStudent) {
+        display.textContent =
+          "الفائزة المسجلة لم تعد ضمن قائمة طالبات هذه الشعبة.";
+
+        select.value = "";
+        return;
+      }
+
+      display.textContent =
+        "🏆 نجم الشهر الحالي: " + (star.studentName || existingStudent.name);
+
+      select.value = star.studentId || "";
+
+    } catch (error) {
+      console.error(
+        "[نجوم صفي] خطأ تحميل نجم الشهر:",
+        error
+      );
+
+      display.textContent =
+        "تعذر تحميل نجم الشهر: " + (error.message || "خطأ غير معروف");
+    }
+  }
+
+  async function saveMonthlyStar() {
+    const button = el("saveMonthlyStarButton");
+
+    try {
+      requireTeacher();
+
+      const className = activeClass();
+      const section = activeSection();
+      const studentId = value("monthlyStarStudent");
+
+      if (!className || !section) {
+        throw new Error("اختاري الصف والشعبة أولًا.");
+      }
+
+      if (!studentId) {
+        throw new Error("اختاري الطالبة الفائزة.");
+      }
+
+      const student = studentsCache.find(item =>
+        item.id === studentId &&
+        item.className === className &&
+        String(item.section) === String(section)
+      );
+
+      if (!student) {
+        throw new Error(
+          "الطالبة المختارة ليست ضمن الصف والشعبة المحددين."
+        );
+      }
+
+      if (button) {
+        button.disabled = true;
+        button.textContent = "جارٍ اعتماد نجم الشهر...";
+      }
+
+      const docId = monthlyStarDocumentId(className, section);
+
+      await monthlyStarsRef().doc(docId).set({
+        teacherId: currentTeacher.uid,
+        className: className,
+        section: String(section),
+        studentId: student.id,
+        studentName: student.name,
+        updatedAt: serverTimestamp()
+      });
+
+      await loadMonthlyStar();
+
+      showMessage(
+        "🏆 تم اعتماد " + student.name + " نجمًا للشهر بنجاح.",
+        "success",
+        "monthlyStarStatus"
+      );
+
+    } catch (error) {
+      showMessage(
+        errorMessage(error),
+        "error",
+        "monthlyStarStatus"
+      );
+
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = "🏆 اعتماد نجم الشهر";
+      }
+    }
+  }
+
+  async function clearMonthlyStar() {
+    try {
+      requireTeacher();
+
+      const className = activeClass();
+      const section = activeSection();
+
+      if (!className || !section) {
+        throw new Error("اختاري الصف والشعبة أولًا.");
+      }
+
+      const docId = monthlyStarDocumentId(className, section);
+
+      const snapshot = await monthlyStarsRef()
+        .doc(docId)
+        .get();
+
+      if (!snapshot.exists) {
+        showMessage(
+          "لا يوجد نجم شهر مسجل لهذه الشعبة.",
+          "info",
+          "monthlyStarStatus"
+        );
+        return;
+      }
+
+      if (!confirm("هل تريدين إزالة نجم الشهر لهذه الشعبة؟")) {
+        return;
+      }
+
+      await monthlyStarsRef().doc(docId).delete();
+
+      await loadMonthlyStar();
+
+      showMessage(
+        "تمت إزالة نجم الشهر لهذه الشعبة.",
+        "success",
+        "monthlyStarStatus"
+      );
+
+    } catch (error) {
+      showMessage(
+        errorMessage(error),
+        "error",
+        "monthlyStarStatus"
+      );
+    }
   }
 
   /* -------------------- تسجيل الدخول والخروج -------------------- */
@@ -494,15 +691,6 @@ function initializeTeacherPanel() {
 
       auth.languageCode = "ar";
 
-      console.log(
-        "[نجوم صفي] طلب إعادة تعيين كلمة المرور."
-      );
-
-      console.log(
-        "[نجوم صفي] Firebase project:",
-        auth.app.options.projectId
-      );
-
       await auth.sendPasswordResetEmail(email);
 
       showMessage(
@@ -522,18 +710,14 @@ function initializeTeacherPanel() {
       if (error.code === "auth/operation-not-allowed") {
         message =
           "خدمة البريد الإلكتروني وكلمة المرور غير مفعّلة في إعدادات Firebase.";
-
       } else if (error.code === "auth/invalid-email") {
         message = "البريد الإلكتروني غير صحيح.";
-
       } else if (error.code === "auth/too-many-requests") {
         message =
           "تم طلب الاستعادة مرات عديدة. انتظري قليلًا ثم حاولي مجددًا.";
-
       } else if (error.code === "auth/network-request-failed") {
         message =
           "تعذر الاتصال بالإنترنت. تحققي من الاتصال وحاولي مجددًا.";
-
       } else if (
         error.code === "auth/unauthorized-continue-uri" ||
         error.code === "auth/invalid-continue-uri"
@@ -555,7 +739,6 @@ function initializeTeacherPanel() {
   async function teacherLogout() {
     try {
       await auth.signOut();
-
     } catch (error) {
       showMessage(errorMessage(error), "error", "loginError");
     }
@@ -614,6 +797,8 @@ function initializeTeacherPanel() {
         loadRewards(),
         loadRewardRequests()
       ]);
+
+      await loadMonthlyStar();
 
       console.log("[نجوم صفي] اكتمل تحميل لوحة المعلمة.");
 
@@ -676,6 +861,9 @@ function initializeTeacherPanel() {
 
       renderStudents();
 
+      // تحديث قائمة نجم الشهر بعد تحديث قائمة الطالبات
+      await loadMonthlyStar();
+
       return studentsCache;
 
     } catch (error) {
@@ -728,7 +916,6 @@ function initializeTeacherPanel() {
     `).join("");
   }
 
-  // الحفظ المباشر في teachers/{teacherId}/students فقط.
   async function saveStudent() {
     try {
       requireTeacher();
@@ -751,7 +938,6 @@ function initializeTeacherPanel() {
         oldData = snapshot.data() || {};
       }
 
-      // التحقق من عدم تكرار الرمز داخل سجلات المعلمة.
       const duplicateSnapshot = await studentsRef()
         .where("code", "==", data.code)
         .limit(2)
@@ -825,6 +1011,9 @@ function initializeTeacherPanel() {
     setValue(student.section, "activeSectionSelect");
     updateSelectedClassInfo();
 
+    // تحديث نجم الشهر للشعبة التي انتقلنا إليها
+    loadMonthlyStar();
+
     if (el("studentSaveButton")) {
       el("studentSaveButton").textContent = "حفظ التعديلات";
     }
@@ -851,7 +1040,6 @@ function initializeTeacherPanel() {
     clearMessage("studentStatus");
   }
 
-  // حذف سجل الطالبة فقط من مجموعة students.
   async function deleteStudent(studentId) {
     if (!confirm("هل تريدين حذف هذه الطالبة؟")) return;
 
@@ -1293,6 +1481,10 @@ function initializeTeacherPanel() {
     bindClick("rewardSaveButton", saveReward);
     bindClick("cancelStudentButton", cancelStudentEdit);
 
+    // أزرار إدارة نجم الشهر
+    bindClick("saveMonthlyStarButton", saveMonthlyStar);
+    bindClick("clearMonthlyStarButton", clearMonthlyStar);
+
     bindClick("cancelRewardButton", () => {
       editingRewardId = null;
 
@@ -1368,6 +1560,7 @@ function initializeTeacherPanel() {
         renderStudents();
         renderRewards();
         renderRewardRequests();
+        loadMonthlyStar();
       });
     }
 
@@ -1457,6 +1650,9 @@ function initializeTeacherPanel() {
     saveReward,
     deleteReward,
     loadRewardRequests,
-    processRewardRequest
+    processRewardRequest,
+    loadMonthlyStar,
+    saveMonthlyStar,
+    clearMonthlyStar
   });
 }
