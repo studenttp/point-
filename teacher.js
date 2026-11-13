@@ -8,6 +8,9 @@
 
    إدارة نجم الشهر:
    teachers/{teacherId}/monthlyStars/{class}__{section}
+
+   تعديل النقاط:
+   تحديث فوري باستخدام Firestore Transaction
    ========================================================= */
 
 "use strict";
@@ -44,6 +47,9 @@ function initializeTeacherPanel() {
   let editingStudentId = null;
   let editingRewardId = null;
   let teacherProfile = {};
+
+  // منع تنفيذ أكثر من عملية تعديل نقاط في الوقت نفسه
+  let adjustingPoints = false;
 
   /* -------------------- أدوات مساعدة -------------------- */
 
@@ -172,12 +178,10 @@ function initializeTeacherPanel() {
     return teacherRef().collection("rewardRequests");
   }
 
-  // مجموعة نجم الشهر الخاصة بالمعلمة
   function monthlyStarsRef() {
     return teacherRef().collection("monthlyStars");
   }
 
-  // معرّف مستقل لكل صف وشعبة
   function monthlyStarDocumentId(className, section) {
     return encodeURIComponent(className) + "__" +
       encodeURIComponent(String(section));
@@ -330,7 +334,6 @@ function initializeTeacherPanel() {
       return;
     }
 
-    // عرض طالبات الصف والشعبة المختارين
     const students = studentsCache.filter(student =>
       student.className === className &&
       String(student.section) === String(section)
@@ -359,7 +362,6 @@ function initializeTeacherPanel() {
 
       const star = snapshot.data() || {};
 
-      // التحقق من أن الفائزة ما زالت ضمن الشعبة
       const existingStudent = students.find(
         student => student.id === star.studentId
       );
@@ -654,8 +656,6 @@ function initializeTeacherPanel() {
     }
   }
 
-  /* -------------------- استعادة كلمة المرور -------------------- */
-
   async function resetPassword() {
     clearMessage("loginError");
 
@@ -774,6 +774,8 @@ function initializeTeacherPanel() {
       rewardsCache = [];
       requestsCache = [];
       teacherProfile = {};
+      editingStudentId = null;
+      editingRewardId = null;
 
       return;
     }
@@ -861,7 +863,6 @@ function initializeTeacherPanel() {
 
       renderStudents();
 
-      // تحديث قائمة نجم الشهر بعد تحديث قائمة الطالبات
       await loadMonthlyStar();
 
       return studentsCache;
@@ -914,6 +915,169 @@ function initializeTeacherPanel() {
         </button>
       </div>
     `).join("");
+  }
+
+  /* =========================================================
+     تعديل النقاط مباشرة
+     ========================================================= */
+
+  async function adjustStudentPoints(delta) {
+    if (adjustingPoints) return;
+
+    // التأكد من تسجيل الدخول
+    try {
+      requireTeacher();
+    } catch (error) {
+      showMessage(error.message, "error", "studentStatus");
+      return;
+    }
+
+    // يجب أن تكون الطالبة محفوظة ومختارة من زر تعديل
+    const studentId = editingStudentId;
+
+    if (!studentId) {
+      showMessage(
+        "اختاري الطالبة من قائمة الطالبات واضغطي زر تعديل أولًا، ثم استخدمي أزرار النقاط.",
+        "error",
+        "studentStatus"
+      );
+      return;
+    }
+
+    // التحقق من قيمة الزر
+    if (
+      !Number.isInteger(delta) ||
+      delta === 0 ||
+      Math.abs(delta) > 5
+    ) {
+      showMessage(
+        "قيمة تعديل النقاط غير صحيحة.",
+        "error",
+        "studentStatus"
+      );
+      return;
+    }
+
+    const student = studentsCache.find(
+      item => item.id === studentId
+    );
+
+    if (!student) {
+      showMessage(
+        "لم يتم العثور على سجل الطالبة. أعيدي تحميل القائمة.",
+        "error",
+        "studentStatus"
+      );
+      return;
+    }
+
+    // تعطيل الأزرار مؤقتًا لمنع الضغط المتكرر أثناء الحفظ
+    adjustingPoints = true;
+
+    const buttons = [
+      ...document.querySelectorAll(".points-adjust")
+    ];
+
+    buttons.forEach(button => {
+      button.disabled = true;
+    });
+
+    const pointsInput = el("studentPoints");
+    const previousInputValue = pointsInput?.value;
+
+    try {
+      const studentRef = studentsRef().doc(studentId);
+
+      let newPoints = null;
+
+      // تحديث آمن ومباشر في Firestore
+      await db.runTransaction(async transaction => {
+        const snapshot = await transaction.get(studentRef);
+
+        if (!snapshot.exists) {
+          throw new Error("لم يتم العثور على سجل الطالبة في قاعدة البيانات.");
+        }
+
+        const studentData = snapshot.data() || {};
+        const currentPoints = Number(studentData.points ?? 0);
+
+        if (
+          !Number.isSafeInteger(currentPoints) ||
+          currentPoints < 0
+        ) {
+          throw new Error(
+            "رصيد الطالبة الحالي غير صالح. تحققي من بيانات النقاط."
+          );
+        }
+
+        const calculatedPoints = currentPoints + delta;
+
+        // منع الرصيد السالب
+        if (calculatedPoints < 0) {
+          throw new Error(
+            `لا يمكن خصم ${Math.abs(delta)} نقاط؛ رصيد الطالبة الحالي ${currentPoints} نقاط فقط.`
+          );
+        }
+
+        if (!Number.isSafeInteger(calculatedPoints)) {
+          throw new Error("وصل رصيد النقاط إلى قيمة غير صالحة.");
+        }
+
+        newPoints = calculatedPoints;
+
+        transaction.update(studentRef, {
+          points: calculatedPoints,
+          updatedAt: serverTimestamp()
+        });
+      });
+
+      // تحديث ذاكرة الطالبات محليًا
+      studentsCache = studentsCache.map(item =>
+        item.id === studentId
+          ? { ...item, points: newPoints }
+          : item
+      );
+
+      // تحديث خانة النقاط في النموذج
+      if (editingStudentId === studentId) {
+        setValue(newPoints, "studentPoints");
+      }
+
+      // تحديث قائمة الطالبات
+      renderStudents();
+
+      const operationText = delta > 0
+        ? `تمت إضافة ${delta} نقطة`
+        : `تم خصم ${Math.abs(delta)} نقطة`;
+
+      showMessage(
+        `✅ ${operationText} للطالبة ${student.name}. رصيدها الحالي: ${newPoints} نقطة.`,
+        "success",
+        "studentStatus"
+      );
+
+    } catch (error) {
+      // الاحتفاظ بالقيمة السابقة في حالة فشل العملية
+      if (
+        editingStudentId === studentId &&
+        pointsInput
+      ) {
+        pointsInput.value = previousInputValue ?? "";
+      }
+
+      showMessage(
+        errorMessage(error),
+        "error",
+        "studentStatus"
+      );
+
+    } finally {
+      adjustingPoints = false;
+
+      buttons.forEach(button => {
+        button.disabled = false;
+      });
+    }
   }
 
   async function saveStudent() {
@@ -1011,7 +1175,6 @@ function initializeTeacherPanel() {
     setValue(student.section, "activeSectionSelect");
     updateSelectedClassInfo();
 
-    // تحديث نجم الشهر للشعبة التي انتقلنا إليها
     loadMonthlyStar();
 
     if (el("studentSaveButton")) {
@@ -1021,6 +1184,12 @@ function initializeTeacherPanel() {
     if (el("cancelStudentButton")) {
       el("cancelStudentButton").style.display = "inline-block";
     }
+
+    showMessage(
+      `تم اختيار الطالبة ${student.name}. يمكنك الآن تعديل نقاطها مباشرة.`,
+      "info",
+      "studentStatus"
+    );
   }
 
   function cancelStudentEdit() {
@@ -1481,7 +1650,6 @@ function initializeTeacherPanel() {
     bindClick("rewardSaveButton", saveReward);
     bindClick("cancelStudentButton", cancelStudentEdit);
 
-    // أزرار إدارة نجم الشهر
     bindClick("saveMonthlyStarButton", saveMonthlyStar);
     bindClick("clearMonthlyStarButton", clearMonthlyStar);
 
@@ -1510,6 +1678,23 @@ function initializeTeacherPanel() {
       "addRegistrationClassButton",
       addRegistrationClass
     );
+
+    // ربط أزرار إضافة وخصم النقاط
+    const pointsActions = document.querySelector(".points-actions");
+
+    if (pointsActions && !pointsActions.dataset.bound) {
+      pointsActions.dataset.bound = "true";
+
+      pointsActions.addEventListener("click", event => {
+        const button = event.target.closest("[data-points]");
+
+        if (!button || button.disabled) return;
+
+        const delta = Number(button.dataset.points);
+
+        adjustStudentPoints(delta);
+      });
+    }
 
     const registrationClasses = el("registrationClasses");
 
@@ -1646,6 +1831,7 @@ function initializeTeacherPanel() {
     editStudent,
     deleteStudent,
     cancelStudentEdit,
+    adjustStudentPoints,
     loadRewards,
     saveReward,
     deleteReward,
