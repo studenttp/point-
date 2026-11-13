@@ -924,147 +924,116 @@ function initializeTeacherPanel() {
   async function adjustStudentPoints(delta) {
     if (adjustingPoints) return;
 
-    // التأكد من تسجيل الدخول
     try {
       requireTeacher();
-    } catch (error) {
-      showMessage(error.message, "error", "studentStatus");
-      return;
-    }
 
-    // يجب أن تكون الطالبة محفوظة ومختارة من زر تعديل
-    const studentId = editingStudentId;
+      const studentId = editingStudentId;
 
-    if (!studentId) {
-      showMessage(
-        "اختاري الطالبة من قائمة الطالبات واضغطي زر تعديل أولًا، ثم استخدمي أزرار النقاط.",
-        "error",
-        "studentStatus"
+      if (!studentId) {
+        throw new Error(
+          "اختاري الطالبة من قائمة الطالبات واضغطي زر تعديل أولًا."
+        );
+      }
+
+      if (
+        !Number.isInteger(delta) ||
+        delta === 0 ||
+        Math.abs(delta) > 5
+      ) {
+        throw new Error("قيمة تعديل النقاط غير صحيحة.");
+      }
+
+      const student = studentsCache.find(
+        item => item.id === studentId
       );
-      return;
-    }
 
-    // التحقق من قيمة الزر
-    if (
-      !Number.isInteger(delta) ||
-      delta === 0 ||
-      Math.abs(delta) > 5
-    ) {
-      showMessage(
-        "قيمة تعديل النقاط غير صحيحة.",
-        "error",
-        "studentStatus"
-      );
-      return;
-    }
+      if (!student) {
+        throw new Error("لم يتم العثور على الطالبة.");
+      }
 
-    const student = studentsCache.find(
-      item => item.id === studentId
-    );
+      adjustingPoints = true;
 
-    if (!student) {
-      showMessage(
-        "لم يتم العثور على سجل الطالبة. أعيدي تحميل القائمة.",
-        "error",
-        "studentStatus"
-      );
-      return;
-    }
+      const buttons = [
+        ...document.querySelectorAll(".points-adjust")
+      ];
 
-    // تعطيل الأزرار مؤقتًا لمنع الضغط المتكرر أثناء الحفظ
-    adjustingPoints = true;
-
-    const buttons = [
-      ...document.querySelectorAll(".points-adjust")
-    ];
-
-    buttons.forEach(button => {
-      button.disabled = true;
-    });
-
-    const pointsInput = el("studentPoints");
-    const previousInputValue = pointsInput?.value;
-
-    try {
-      const studentRef = studentsRef().doc(studentId);
-
-      let newPoints = null;
-
-      // تحديث آمن ومباشر في Firestore
-      await db.runTransaction(async transaction => {
-        const snapshot = await transaction.get(studentRef);
-
-        if (!snapshot.exists) {
-          throw new Error("لم يتم العثور على سجل الطالبة في قاعدة البيانات.");
-        }
-
-        const studentData = snapshot.data() || {};
-        const currentPoints = Number(studentData.points ?? 0);
-
-        if (
-          !Number.isSafeInteger(currentPoints) ||
-          currentPoints < 0
-        ) {
-          throw new Error(
-            "رصيد الطالبة الحالي غير صالح. تحققي من بيانات النقاط."
-          );
-        }
-
-        const calculatedPoints = currentPoints + delta;
-
-        // منع الرصيد السالب
-        if (calculatedPoints < 0) {
-          throw new Error(
-            `لا يمكن خصم ${Math.abs(delta)} نقاط؛ رصيد الطالبة الحالي ${currentPoints} نقاط فقط.`
-          );
-        }
-
-        if (!Number.isSafeInteger(calculatedPoints)) {
-          throw new Error("وصل رصيد النقاط إلى قيمة غير صالحة.");
-        }
-
-        newPoints = calculatedPoints;
-
-        transaction.update(studentRef, {
-          points: calculatedPoints,
-          updatedAt: serverTimestamp()
-        });
+      buttons.forEach(button => {
+        button.disabled = true;
       });
 
-      // تحديث ذاكرة الطالبات محليًا
-      studentsCache = studentsCache.map(item =>
-        item.id === studentId
-          ? { ...item, points: newPoints }
-          : item
-      );
+      try {
+        const studentRef = studentsRef().doc(studentId);
 
-      // تحديث خانة النقاط في النموذج
-      if (editingStudentId === studentId) {
-        setValue(newPoints, "studentPoints");
+        let newPoints = null;
+
+        await db.runTransaction(async transaction => {
+          const snapshot = await transaction.get(studentRef);
+
+          if (!snapshot.exists) {
+            throw new Error(
+              "لم يتم العثور على سجل الطالبة في قاعدة البيانات."
+            );
+          }
+
+          const studentData = snapshot.data() || {};
+          const currentPoints = Number(studentData.points ?? 0);
+
+          if (
+            !Number.isSafeInteger(currentPoints) ||
+            currentPoints < 0
+          ) {
+            throw new Error("رصيد النقاط الحالي غير صالح.");
+          }
+
+          const calculatedPoints = currentPoints + delta;
+
+          if (calculatedPoints < 0) {
+            throw new Error(
+              `لا يمكن خصم ${Math.abs(delta)} نقاط؛ رصيد الطالبة الحالي ${currentPoints} نقاط فقط.`
+            );
+          }
+
+          if (!Number.isSafeInteger(calculatedPoints)) {
+            throw new Error("وصل رصيد النقاط إلى قيمة غير صالحة.");
+          }
+
+          newPoints = calculatedPoints;
+
+          transaction.update(studentRef, {
+            points: calculatedPoints,
+            updatedAt: serverTimestamp()
+          });
+        });
+
+        studentsCache = studentsCache.map(item =>
+          item.id === studentId
+            ? { ...item, points: newPoints }
+            : item
+        );
+
+        if (editingStudentId === studentId) {
+          setValue(newPoints, "studentPoints");
+        }
+
+        renderStudents();
+
+        const operationText = delta > 0
+          ? `تمت إضافة ${delta} نقطة`
+          : `تم خصم ${Math.abs(delta)} نقطة`;
+
+        showMessage(
+          `✅ ${operationText} للطالبة ${student.name}. رصيدها الحالي: ${newPoints} نقطة.`,
+          "success",
+          "studentStatus"
+        );
+
+      } finally {
+        buttons.forEach(button => {
+          button.disabled = false;
+        });
       }
-
-      // تحديث قائمة الطالبات
-      renderStudents();
-
-      const operationText = delta > 0
-        ? `تمت إضافة ${delta} نقطة`
-        : `تم خصم ${Math.abs(delta)} نقطة`;
-
-      showMessage(
-        `✅ ${operationText} للطالبة ${student.name}. رصيدها الحالي: ${newPoints} نقطة.`,
-        "success",
-        "studentStatus"
-      );
 
     } catch (error) {
-      // الاحتفاظ بالقيمة السابقة في حالة فشل العملية
-      if (
-        editingStudentId === studentId &&
-        pointsInput
-      ) {
-        pointsInput.value = previousInputValue ?? "";
-      }
-
       showMessage(
         errorMessage(error),
         "error",
@@ -1073,10 +1042,6 @@ function initializeTeacherPanel() {
 
     } finally {
       adjustingPoints = false;
-
-      buttons.forEach(button => {
-        button.disabled = false;
-      });
     }
   }
 
@@ -1679,23 +1644,6 @@ function initializeTeacherPanel() {
       addRegistrationClass
     );
 
-    // ربط أزرار إضافة وخصم النقاط
-    const pointsActions = document.querySelector(".points-actions");
-
-    if (pointsActions && !pointsActions.dataset.bound) {
-      pointsActions.dataset.bound = "true";
-
-      pointsActions.addEventListener("click", event => {
-        const button = event.target.closest("[data-points]");
-
-        if (!button || button.disabled) return;
-
-        const delta = Number(button.dataset.points);
-
-        adjustStudentPoints(delta);
-      });
-    }
-
     const registrationClasses = el("registrationClasses");
 
     if (
@@ -1841,4 +1789,55 @@ function initializeTeacherPanel() {
     saveMonthlyStar,
     clearMonthlyStar
   });
+
+  /* =========================================================
+     الربط النهائي لأزرار إضافة وخصم النقاط
+
+     يستخدم document بدل الاعتماد على عنصر points-actions
+     حتى يستقبل الضغط حتى لو تغيّر تركيب الصفحة.
+     ========================================================= */
+
+  if (!document.documentElement.dataset.pointsListenerBound) {
+    document.documentElement.dataset.pointsListenerBound = "true";
+
+    document.addEventListener("click", function(event) {
+      const button = event.target.closest(
+        ".points-adjust[data-points]"
+      );
+
+      if (!button) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (button.disabled || adjustingPoints) return;
+
+      const delta = Number(
+        button.getAttribute("data-points")
+      );
+
+      console.log(
+        "[نجوم صفي] تم الضغط على زر تعديل النقاط:",
+        delta
+      );
+
+      if (
+        !Number.isInteger(delta) ||
+        delta === 0 ||
+        Math.abs(delta) > 5
+      ) {
+        showMessage(
+          "قيمة النقاط غير صحيحة.",
+          "error",
+          "studentStatus"
+        );
+        return;
+      }
+
+      adjustStudentPoints(delta);
+
+    }, true);
+  }
+
+  console.log("[نجوم صفي] تم تفعيل نظام تعديل النقاط.");
 }
