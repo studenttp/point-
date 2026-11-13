@@ -30,28 +30,19 @@
     <form id="teacherLoginForm">
       <div class="login-form-group">
         <label for="teacherEmail">البريد الإلكتروني</label>
-        <input
-          type="email"
-          id="teacherEmail"
+        <input type="email" id="teacherEmail"
           autocomplete="username"
-          placeholder="أدخلي بريدك الإلكتروني"
-          required>
+          placeholder="أدخلي بريدك الإلكتروني" required>
       </div>
 
       <div class="login-form-group">
         <label for="teacherPassword">كلمة المرور</label>
-        <input
-          type="password"
-          id="teacherPassword"
+        <input type="password" id="teacherPassword"
           autocomplete="current-password"
-          placeholder="أدخلي كلمة المرور"
-          required>
+          placeholder="أدخلي كلمة المرور" required>
       </div>
 
-      <button
-        type="submit"
-        class="main-button"
-        id="teacherLoginButton">
+      <button type="submit" class="main-button" id="teacherLoginButton">
         دخول لوحة المعلمة
       </button>
     </form>
@@ -70,10 +61,7 @@
   </main>
 
   <!-- إنشاء حساب معلمة -->
-  <section
-    id="teacherRegistrationBox"
-    class="login-box"
-    style="display:none;">
+  <section id="teacherRegistrationBox" class="login-box" style="display:none;">
 
     <div class="login-icon" aria-hidden="true">✨</div>
     <h1>تسجيل معلمة جديدة</h1>
@@ -83,61 +71,41 @@
 
       <div class="login-form-group">
         <label for="registerTeacherName">اسم المعلمة الكامل</label>
-        <input
-          type="text"
-          id="registerTeacherName"
-          autocomplete="name"
-          required>
+        <input type="text" id="registerTeacherName"
+          autocomplete="name" required>
       </div>
 
       <div class="login-form-group">
         <label for="registerSchoolName">اسم المدرسة</label>
-        <input
-          type="text"
-          id="registerSchoolName"
-          value="مدرسة السويح للتعليم الأساسي (١-١٠)"
-          required>
+        <input type="text" id="registerSchoolName"
+          value="مدرسة السويح للتعليم الأساسي (١-١٠)" required>
       </div>
 
       <div class="login-form-group">
         <label for="registerSubjectName">المادة الدراسية</label>
-        <input
-          type="text"
-          id="registerSubjectName"
-          placeholder="مثال: الرياضيات"
-          required>
+        <input type="text" id="registerSubjectName"
+          placeholder="مثال: الرياضيات" required>
       </div>
 
       <div class="login-form-group">
         <label for="registerTeacherEmail">البريد الإلكتروني</label>
-        <input
-          type="email"
-          id="registerTeacherEmail"
+        <input type="email" id="registerTeacherEmail"
           autocomplete="email"
-          placeholder="أدخلي بريدك الإلكتروني"
-          required>
+          placeholder="أدخلي بريدك الإلكتروني" required>
       </div>
 
       <div class="login-form-group">
         <label for="registerTeacherPassword">إنشاء كلمة المرور</label>
-        <input
-          type="password"
-          id="registerTeacherPassword"
-          minlength="8"
-          autocomplete="new-password"
-          placeholder="8 أحرف على الأقل"
-          required>
+        <input type="password" id="registerTeacherPassword"
+          minlength="8" autocomplete="new-password"
+          placeholder="8 أحرف على الأقل" required>
       </div>
 
       <div class="login-form-group">
         <label for="confirmTeacherPassword">تأكيد كلمة المرور</label>
-        <input
-          type="password"
-          id="confirmTeacherPassword"
-          minlength="8"
-          autocomplete="new-password"
-          placeholder="أعيدي كتابة كلمة المرور"
-          required>
+        <input type="password" id="confirmTeacherPassword"
+          minlength="8" autocomplete="new-password"
+          placeholder="أعيدي كتابة كلمة المرور" required>
       </div>
 
       <h3>📚 الصفوف والشعب التي تدرّسينها</h3>
@@ -175,33 +143,24 @@
             </div>
           </div>
 
-          <button
-            type="button"
-            class="cancel-button remove-class-button">
+          <button type="button" class="cancel-button remove-class-button">
             حذف الصف
           </button>
 
         </div>
       </div>
 
-      <button
-        type="button"
-        class="cancel-button"
+      <button type="button" class="cancel-button"
         id="addRegistrationClassButton">
         ➕ إضافة صف آخر
       </button>
 
-      <button
-        type="submit"
-        class="main-button"
+      <button type="submit" class="main-button"
         id="registerTeacherButton">
         إنشاء حساب المعلمة
       </button>
 
-      <button
-        type="button"
-        class="cancel-button"
-        id="backToLoginButton">
+      <button type="button" class="cancel-button" id="backToLoginButton">
         العودة إلى تسجيل الدخول
       </button>
 
@@ -259,12 +218,14 @@
       <div class="form-grid">
         <div class="login-form-group">
           <label for="className">الصف المختار</label>
-          <input type="text" id="className" placeholder="الصف المختار" readonly>
+          <input type="text" id="className"
+            placeholder="الصف المختار" readonly>
         </div>
 
         <div class="login-form-group">
           <label for="subjectName">المادة الدراسية</label>
-          <input type="text" id="subjectName" placeholder="المادة الدراسية" readonly>
+          <input type="text" id="subjectName"
+            placeholder="المادة الدراسية" readonly>
         </div>
       </div>
     </section>
@@ -277,18 +238,23 @@
       </p>
 
       <div class="form-grid">
+
         <div class="login-form-group">
           <label for="studentName">اسم الطالبة</label>
-          <input type="text" id="studentName" placeholder="اسم الطالبة">
+          <input type="text" id="studentName"
+            placeholder="اسم الطالبة">
         </div>
 
         <div class="login-form-group">
           <label for="studentCode">رمز الطالبة</label>
-          <input type="text" id="studentCode" placeholder="الرقم المدرسي أو رمز الطالبة">
+          <input type="text" id="studentCode"
+            placeholder="الرقم المدرسي أو رمز الطالبة">
         </div>
 
-        <div class="login-form-group">
-          <label for="studentPoints">النقاط الأولية</label>
+        <!-- النقاط وأزرار الإضافة والخصم -->
+        <div class="login-form-group points-control">
+          <label for="studentPoints">نقاط الطالبة</label>
+
           <input
             type="number"
             id="studentPoints"
@@ -296,13 +262,41 @@
             min="0"
             step="1"
             value="0">
+
+          <div class="points-actions">
+
+            <p class="points-action-label">🟢 إضافة نقاط</p>
+
+            <div class="points-buttons">
+              <button type="button" class="points-adjust add-points" data-points="1">+1</button>
+              <button type="button" class="points-adjust add-points" data-points="2">+2</button>
+              <button type="button" class="points-adjust add-points" data-points="3">+3</button>
+              <button type="button" class="points-adjust add-points" data-points="4">+4</button>
+              <button type="button" class="points-adjust add-points" data-points="5">+5</button>
+            </div>
+
+            <p class="points-action-label">🔴 خصم نقاط</p>
+
+            <div class="points-buttons">
+              <button type="button" class="points-adjust subtract-points" data-points="-1">-1</button>
+              <button type="button" class="points-adjust subtract-points" data-points="-2">-2</button>
+              <button type="button" class="points-adjust subtract-points" data-points="-3">-3</button>
+              <button type="button" class="points-adjust subtract-points" data-points="-4">-4</button>
+              <button type="button" class="points-adjust subtract-points" data-points="-5">-5</button>
+            </div>
+
+          </div>
+
+          <small class="points-hint">
+            تُحدّث النقاط مباشرة عند الضغط على الأزرار بعد اختيار الطالبة.
+          </small>
         </div>
+
       </div>
 
       <div class="login-form-group">
         <label for="studentMessage">رسالة للطالبة</label>
-        <textarea
-          id="studentMessage"
+        <textarea id="studentMessage"
           placeholder="💬 اكتبي رسالة تشجيعية"
           rows="3"></textarea>
       </div>
@@ -312,11 +306,8 @@
           ➕ إضافة الطالبة
         </button>
 
-        <button
-          type="button"
-          class="cancel-button"
-          id="cancelStudentButton"
-          style="display:none;">
+        <button type="button" class="cancel-button"
+          id="cancelStudentButton" style="display:none;">
           إلغاء التعديل
         </button>
       </div>
@@ -327,44 +318,39 @@
       <div id="studentsList">اختاري الصف والشعبة لعرض الطالبات.</div>
     </section>
 
+    <!-- إدارة نجم الشهر -->
+    <section class="panel" id="monthlyStarManager">
+      <h2>🏆 إدارة نجم الشهر</h2>
 
-<!-- إدارة نجم الشهر -->
-<section class="panel" id="monthlyStarManager">
-  <h2>🏆 إدارة نجم الشهر</h2>
+      <p class="section-description">
+        اختاري الطالبة المتميزة في الصف والشعبة المحددين.
+      </p>
 
-  <p class="section-description">
-    اختاري الطالبة المتميزة في الصف والشعبة المحددين.
-  </p>
+      <div class="login-form-group">
+        <label for="monthlyStarStudent">الطالبة الفائزة</label>
+        <select id="monthlyStarStudent">
+          <option value="">اختاري الطالبة</option>
+        </select>
+      </div>
 
-  <div class="login-form-group">
-    <label for="monthlyStarStudent">الطالبة الفائزة</label>
-    <select id="monthlyStarStudent">
-      <option value="">اختاري الطالبة</option>
-    </select>
-  </div>
+      <div class="form-actions">
+        <button type="button" class="main-button"
+          id="saveMonthlyStarButton">
+          🏆 اعتماد نجم الشهر
+        </button>
 
-  <div class="form-actions">
-    <button
-      type="button"
-      class="main-button"
-      id="saveMonthlyStarButton">
-      🏆 اعتماد نجم الشهر
-    </button>
+        <button type="button" class="cancel-button"
+          id="clearMonthlyStarButton">
+          إزالة نجم الشهر
+        </button>
+      </div>
 
-    <button
-      type="button"
-      class="cancel-button"
-      id="clearMonthlyStarButton">
-      إزالة نجم الشهر
-    </button>
-  </div>
+      <div id="monthlyStarStatus" role="status" aria-live="polite"></div>
 
-  <div id="monthlyStarStatus" role="status" aria-live="polite"></div>
-
-  <div id="currentMonthlyStar">
-    لم يتم اختيار نجم الشهر لهذه الشعبة بعد.
-  </div>
-</section>
+      <div id="currentMonthlyStar">
+        لم يتم اختيار نجم الشهر لهذه الشعبة بعد.
+      </div>
+    </section>
 
     <!-- الملفات الموحدة -->
     <section class="panel" aria-labelledby="unifiedStudentsTitle">
@@ -378,52 +364,51 @@
     </section>
 
     <!-- إدارة المكافآت -->
-    <section class="panel" id="rewardsManager" aria-labelledby="rewardsTitle">
+    <section class="panel" id="rewardsManager"
+      aria-labelledby="rewardsTitle">
+
       <h2 id="rewardsTitle">🎁 إدارة المكافآت</h2>
       <p class="section-description">
         أضيفي المكافآت المتاحة لطالبات الصف والشعبة المختارين.
       </p>
 
       <div class="form-grid">
+
         <div class="login-form-group">
           <label for="rewardName">اسم المكافأة</label>
-          <input type="text" id="rewardName" placeholder="اسم المكافأة">
+          <input type="text" id="rewardName"
+            placeholder="اسم المكافأة">
         </div>
 
         <div class="login-form-group">
           <label for="rewardPrice">عدد النقاط</label>
-          <input
-            type="number"
-            id="rewardPrice"
-            placeholder="عدد النقاط"
-            min="1"
-            step="1">
+          <input type="number" id="rewardPrice"
+            placeholder="عدد النقاط" min="1" step="1">
         </div>
 
         <div class="login-form-group">
           <label for="rewardIcon">رمز المكافأة</label>
-          <input type="text" id="rewardIcon" placeholder="🎁" value="🎁">
+          <input type="text" id="rewardIcon"
+            placeholder="🎁" value="🎁">
         </div>
+
       </div>
 
       <div class="login-form-group">
         <label for="rewardDescription">وصف المكافأة</label>
-        <textarea
-          id="rewardDescription"
+        <textarea id="rewardDescription"
           placeholder="اكتبي وصفًا مختصرًا للمكافأة"
           rows="3"></textarea>
       </div>
 
       <div class="form-actions">
-        <button type="button" class="main-button" id="rewardSaveButton">
+        <button type="button" class="main-button"
+          id="rewardSaveButton">
           ➕ إضافة المكافأة
         </button>
 
-        <button
-          type="button"
-          class="cancel-button"
-          id="cancelRewardButton"
-          style="display:none;">
+        <button type="button" class="cancel-button"
+          id="cancelRewardButton" style="display:none;">
           إلغاء التعديل
         </button>
       </div>
@@ -435,16 +420,24 @@
     </section>
 
     <!-- طلبات الاستبدال -->
-    <section class="panel requests-panel" aria-labelledby="requestsTitle">
+    <section class="panel requests-panel"
+      aria-labelledby="requestsTitle">
+
       <div class="requests-title">
         <div>
           <h2 id="requestsTitle">🔔 طلبات استبدال المكافآت</h2>
-          <p class="section-description">تابعي طلبات الطالبات في الشعبة المختارة.</p>
+          <p class="section-description">
+            تابعي طلبات الطالبات في الشعبة المختارة.
+          </p>
         </div>
-        <div id="pendingCount" class="pending-count" aria-label="عدد الطلبات المعلقة">0</div>
+
+        <div id="pendingCount" class="pending-count"
+          aria-label="عدد الطلبات المعلقة">0</div>
       </div>
 
-      <div id="rewardRequestsList">لا توجد طلبات معروضة.</div>
+      <div id="rewardRequestsList">
+        لا توجد طلبات معروضة.
+      </div>
     </section>
 
     <footer class="dashboard-footer">
