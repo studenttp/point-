@@ -46,6 +46,23 @@ function escapeHtml(text) {
     .replace(/'/g, "&#039;");
 }
 
+/*
+  توحيد كتابة الاسم للمقارنة فقط.
+  لا يغيّر الاسم الأصلي المخزن أو المعروض.
+*/
+function normalizeStudentName(name) {
+  return String(name ?? "")
+    .normalize("NFKC")
+    .trim()
+    .replace(/[\u064B-\u065F\u0670]/g, "") // إزالة التشكيل
+    .replace(/\u0640/g, "")                // إزالة التطويل
+    .replace(/[\u200B-\u200F\uFEFF]/g, "") // إزالة المحارف الخفية
+    .replace(/[أإآٱ]/g, "ا")               // توحيد الألف
+    .replace(/ى/g, "ي")                    // توحيد الألف المقصورة
+    .replace(/\s+/g, " ")                  // توحيد المسافات
+    .toLowerCase();
+}
+
 function getStudentDatabase() {
   if (window.db) return window.db;
 
@@ -77,8 +94,8 @@ function showSearchError(message, details = "") {
           background:#fff3f3;
           border-radius:8px;
           font-size:12px;
-          direction:ltr;
-          text-align:left;
+          direction:rtl;
+          text-align:right;
           overflow-wrap:anywhere;
         ">${escapeHtml(details)}</div>
       ` : ""}
@@ -392,9 +409,7 @@ async function searchStudent() {
 
   if (!code) {
     clearStudentSession();
-
     showSearchError("يرجى إدخال رمز الطالب.");
-
     playError();
     return;
   }
@@ -440,7 +455,12 @@ async function searchStudent() {
         continue;
       }
 
-      // اسم المادة محفوظ في سجل الطالبة
+      const originalName = String(
+        student.name || ""
+      ).trim();
+
+      if (!originalName) continue;
+
       const subjectName = String(
         student.subjectName || ""
       ).trim();
@@ -449,7 +469,9 @@ async function searchStudent() {
         id: studentDoc.id,
         teacherId: teacherDoc.id,
 
-        name: student.name || "الطالب",
+        name: originalName,
+        normalizedName: normalizeStudentName(originalName),
+
         code,
 
         points: Number(student.points) || 0,
@@ -471,13 +493,33 @@ async function searchStudent() {
       throw new Error("STUDENT_NOT_FOUND");
     }
 
-    // التحقق من اتساق اسم الطالب بين المواد
-    const names = [
-      ...new Set(subjects.map(item => item.name))
+    /*
+      التحقق من الاسم بعد توحيد طريقة الكتابة.
+      اختلاف الهمزات أو التشكيل أو المسافات
+      لن يؤدي إلى اعتبار السجلات لطالبات مختلفات.
+    */
+
+    const normalizedNames = [
+      ...new Set(
+        subjects
+          .map(item => item.normalizedName)
+          .filter(Boolean)
+      )
     ];
 
-    if (names.length > 1) {
-      throw new Error("STUDENT_NAME_CONFLICT");
+    if (normalizedNames.length > 1) {
+      const differentNames = [
+        ...new Set(subjects.map(item => item.name))
+      ];
+
+      const conflictError = new Error(
+        "STUDENT_NAME_CONFLICT"
+      );
+
+      conflictError.details =
+        "الأسماء المسجلة: " + differentNames.join(" — ");
+
+      throw conflictError;
     }
 
     // منع تكرار السجل نفسه إن ظهر أكثر من مرة
@@ -496,6 +538,7 @@ async function searchStudent() {
     window.currentStudentId =
       uniqueSubjects[0].id;
 
+    // الاحتفاظ بالاسم الأصلي للعرض
     window.currentStudentName =
       uniqueSubjects[0].name;
 
@@ -531,7 +574,7 @@ async function searchStudent() {
     clearStudentSession();
 
     let message = "حدث خطأ أثناء البحث.";
-    let details = error.message || "";
+    let details = error.details || error.message || "";
 
     if (error.message === "FIREBASE_NOT_INITIALIZED") {
       message =
@@ -547,9 +590,8 @@ async function searchStudent() {
       error.message === "STUDENT_NAME_CONFLICT"
     ) {
       message =
-        "السجلات المرتبطة بهذا الرمز تحتوي على أسماء مختلفة. يرجى مراجعة المعلمات.";
-      details = "";
-
+        "توجد اختلافات فعلية في أسماء السجلات المرتبطة بهذا الرمز. يرجى مراجعة الأسماء التالية.";
+      
     } else if (error.code === "permission-denied") {
       message =
         "قواعد Firestore لا تسمح بالبحث عن سجلات المواد.";
@@ -629,7 +671,6 @@ function setupPageSounds() {
 
   if (startBtn && !startBtn.dataset.soundBound) {
     startBtn.dataset.soundBound = "true";
-
     startBtn.addEventListener("click", playClick);
   }
 
@@ -638,9 +679,7 @@ function setupPageSounds() {
 
     searchBtn.addEventListener("click", event => {
       event.preventDefault();
-
       playClick();
-
       searchStudent();
     });
   }
@@ -676,8 +715,6 @@ document.addEventListener("click", event => {
 
   const rewardId = button.dataset.rewardId;
 
-  // عند تحميل ملف rewards.js الجديد،
-  // سيتم استدعاء دالة إرسال الطلب الخاصة بالمادة.
   if (typeof window.redeemSubjectReward === "function") {
     window.redeemSubjectReward(
       subject,
@@ -699,6 +736,7 @@ document.addEventListener("click", event => {
 
 window.searchStudent = searchStudent;
 window.escapeHtml = escapeHtml;
+window.normalizeStudentName = normalizeStudentName;
 window.clearStudentSession = clearStudentSession;
 
 window.renderStudentSubjects = renderStudentSubjects;
