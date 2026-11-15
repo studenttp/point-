@@ -42,7 +42,7 @@
     </div>
 </header>
 
-<!-- البحث عن الطالبة -->
+<!-- البحث عن الطالبة وعرض المواد -->
 <section id="search" class="search-box">
 
     <h2>ابحث عن نجمك 🔎</h2>
@@ -56,47 +56,10 @@
         autocomplete="off"
     >
 
-    <button onclick="searchStudent()">بحث</button>
+    <button type="button">بحث</button>
 
+    <!-- تظهر هنا بيانات الطالبة وبطاقات جميع المواد -->
     <div id="result"></div>
-
-</section>
-
-<!-- نجم الشهر -->
-<section class="star-month">
-
-    <h2>🏆 نجم الصف لهذا الشهر 🏆</h2>
-
-    <div class="winner">
-
-        <div class="medal">🥇</div>
-
-        <h3 id="starStudent">سيتم تحديده لاحقًا</h3>
-
-        <p>استمر في التألق... فالنجاح يبدأ بالمحاولة.</p>
-
-    </div>
-
-</section>
-
-<!-- متجر المكافآت -->
-<section class="rewards-preview" id="rewards">
-
-    <div class="rewards-preview-icon">🎁</div>
-
-    <h2>متجر المكافآت</h2>
-
-    <p>
-        اجمع نقاطك، فكل نقطة تقرّبك من مكافأتك! ⭐
-    </p>
-
-    <div id="rewardsList" class="rewards-list">
-
-        <div class="rewards-loading">
-            ✨ أدخل رمز الطالبة لعرض المكافآت.
-        </div>
-
-    </div>
 
 </section>
 
@@ -166,17 +129,11 @@
 
 </footer>
 
-<!-- =====================================
-     Firebase
-===================================== -->
-
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
-<!-- =====================================
-     ملفات الموقع
-===================================== -->
-
+<!-- ملفات الموقع -->
 <script src="firebase.js"></script>
 <script src="script.js"></script>
 <script src="rewards.js"></script>
