@@ -2,12 +2,14 @@
 /* =========================================================
    نجوم صفي - script.js
    البحث عن الطالب في سجلات جميع المعلمات
+   عرض المواد في بطاقات مستقلة
    Firebase Compat SDK
    ========================================================= */
 
 "use strict";
 
-// الأصوات
+/* -------------------- الأصوات -------------------- */
+
 const clappingSound = new Audio("assets/sounds/clapping.mp3");
 const clickSound = new Audio("assets/sounds/click.wav");
 const magicSound = new Audio("assets/sounds/magic.mp3");
@@ -18,7 +20,8 @@ const titleSound = new Audio(
   "assets/sounds/VoicesAI_Miku_Hatsune_ScreenRecording_001252_08092026.mov"
 );
 
-// بيانات الطالب
+/* -------------------- بيانات الطالب -------------------- */
+
 window.currentStudentId = null;
 window.currentStudentCode = null;
 window.currentStudentName = null;
@@ -28,7 +31,8 @@ window.currentStudentClass = "";
 window.currentStudentSection = "";
 window.currentStudentSubjects = [];
 
-// أدوات مساعدة
+/* -------------------- أدوات مساعدة -------------------- */
+
 function getPageElement(id) {
   return document.getElementById(id);
 }
@@ -56,7 +60,8 @@ function getStudentDatabase() {
   throw new Error("FIREBASE_NOT_INITIALIZED");
 }
 
-// رسائل البحث
+/* -------------------- رسائل البحث -------------------- */
+
 function showSearchError(message, details = "") {
   const result = getPageElement("result");
   if (!result) return;
@@ -64,6 +69,7 @@ function showSearchError(message, details = "") {
   result.innerHTML = `
     <div class="error">
       <div>${escapeHtml(message)}</div>
+
       ${details ? `
         <div style="
           margin-top:12px;
@@ -80,7 +86,8 @@ function showSearchError(message, details = "") {
   `;
 }
 
-// تنظيف الجلسة
+/* -------------------- تنظيف الجلسة -------------------- */
+
 function clearStudentSession() {
   window.currentStudentId = null;
   window.currentStudentCode = null;
@@ -92,9 +99,13 @@ function clearStudentSession() {
   window.currentStudentSubjects = [];
 
   const oldStar = getPageElement("starStudent");
-  if (oldStar) oldStar.textContent = "سيتم تحديده لاحقًا";
+
+  if (oldStar) {
+    oldStar.textContent = "سيتم تحديده لاحقًا";
+  }
 
   const rewards = getPageElement("rewardsList");
+
   if (rewards) {
     rewards.innerHTML = `
       <div class="rewards-loading">
@@ -104,18 +115,29 @@ function clearStudentSession() {
   }
 }
 
-// عرض بطاقة مادة واحدة
+/* =========================================================
+   عرض بطاقة مادة واحدة
+   ========================================================= */
+
 function renderSubjectCard(subject, index) {
   const points = Number(subject.points) || 0;
 
+  const subjectName = subject.subjectName || "لم تُحدد المادة";
+  const teacherName = subject.teacherName || "المعلمة";
+
   return `
-    <article class="subject-card" data-teacher-id="${escapeHtml(subject.teacherId)}">
+    <article
+      class="subject-card"
+      data-teacher-id="${escapeHtml(subject.teacherId)}"
+      data-subject-index="${index}"
+    >
 
       <header class="subject-card-header">
         <div class="subject-icon">📚</div>
+
         <div>
-          <h2>${escapeHtml(subject.subjectName)}</h2>
-          <p>${escapeHtml(subject.teacherName || "المعلمة")}</p>
+          <h2>${escapeHtml(subjectName)}</h2>
+          <p>${escapeHtml(teacherName)}</p>
         </div>
       </header>
 
@@ -131,17 +153,29 @@ function renderSubjectCard(subject, index) {
 
       <div class="subject-message">
         <h3>💌 رسالة المعلمة</h3>
-        <p>${escapeHtml(subject.message || "لم تضف المعلمة رسالة بعد.")}</p>
+
+        <p>
+          ${escapeHtml(
+            subject.message || "لم تضف المعلمة رسالة بعد."
+          )}
+        </p>
       </div>
 
       <section class="subject-monthly-star">
         <h3>🏆 نجم الشهر</h3>
-        <p id="subject-star-${index}">جارٍ تحميل نجم الشهر...</p>
+
+        <p id="subject-star-${index}">
+          جارٍ تحميل نجم الشهر...
+        </p>
       </section>
 
       <section class="subject-rewards">
         <h3>🎁 متجر مكافآت المادة</h3>
-        <div id="subject-rewards-${index}" class="subject-rewards-list">
+
+        <div
+          id="subject-rewards-${index}"
+          class="subject-rewards-list"
+        >
           <p>سيتم تحميل المكافآت...</p>
         </div>
       </section>
@@ -150,9 +184,13 @@ function renderSubjectCard(subject, index) {
   `;
 }
 
-// تحميل نجم الشهر لكل مادة
+/* =========================================================
+   تحميل نجم الشهر لكل مادة
+   ========================================================= */
+
 async function loadSubjectMonthlyStar(subject, index) {
   const target = getPageElement(`subject-star-${index}`);
+
   if (!target) return;
 
   try {
@@ -176,17 +214,27 @@ async function loadSubjectMonthlyStar(subject, index) {
     }
 
     const star = snapshot.data() || {};
+
     target.textContent =
       "🌟 " + (star.studentName || "نجم الشهر");
+
   } catch (error) {
-    console.error("خطأ تحميل نجم الشهر:", error);
+    console.error(
+      "[نجوم صفي] خطأ تحميل نجم الشهر:",
+      error
+    );
+
     target.textContent = "تعذر تحميل نجم الشهر.";
   }
 }
 
-// تحميل مكافآت مادة واحدة
+/* =========================================================
+   تحميل مكافآت مادة واحدة
+   ========================================================= */
+
 async function loadSubjectRewards(subject, index) {
   const target = getPageElement(`subject-rewards-${index}`);
+
   if (!target) return;
 
   try {
@@ -199,75 +247,128 @@ async function loadSubjectRewards(subject, index) {
       .get();
 
     const rewards = snapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
       .filter(reward =>
         reward.active !== false &&
-        String(reward.className || "") === String(subject.className) &&
-        String(reward.section ?? "") === String(subject.section)
+        String(reward.className || "") ===
+          String(subject.className) &&
+        String(reward.section ?? "") ===
+          String(subject.section)
       );
 
     if (!rewards.length) {
-      target.innerHTML = "<p>لا توجد مكافآت متاحة حاليًا.</p>";
+      target.innerHTML = `
+        <p>لا توجد مكافآت متاحة حاليًا.</p>
+      `;
       return;
     }
 
     target.innerHTML = rewards.map(reward => {
       const price = Number(reward.price) || 0;
-      const enoughPoints = subject.points >= price;
+      const enoughPoints =
+        Number(subject.points) >= price;
 
       return `
         <div class="reward-card">
-          <div class="reward-icon">${escapeHtml(reward.icon || "🎁")}</div>
-          <h3>${escapeHtml(reward.name || "مكافأة")}</h3>
-          <p>${escapeHtml(reward.description || "")}</p>
-          <div class="reward-price">⭐ ${price} نقطة</div>
+
+          <div class="reward-icon">
+            ${escapeHtml(reward.icon || "🎁")}
+          </div>
+
+          <h3>
+            ${escapeHtml(reward.name || "مكافأة")}
+          </h3>
+
+          <p>
+            ${escapeHtml(reward.description || "")}
+          </p>
+
+          <div class="reward-price">
+            ⭐ ${price} نقطة
+          </div>
 
           ${
             enoughPoints
-              ? `<button type="button"
-                    class="redeem"
-                    data-reward-id="${escapeHtml(reward.id)}"
-                    data-subject-index="${index}">
-                    🎁 طلب المكافأة
-                 </button>`
-              : `<button type="button" class="locked" disabled>
-                    🔒 نقاط غير كافية
-                 </button>`
+              ? `
+                <button
+                  type="button"
+                  class="redeem"
+                  data-reward-id="${escapeHtml(reward.id)}"
+                  data-subject-index="${index}"
+                >
+                  🎁 طلب المكافأة
+                </button>
+              `
+              : `
+                <button
+                  type="button"
+                  class="locked"
+                  disabled
+                >
+                  🔒 نقاط غير كافية
+                </button>
+              `
           }
+
         </div>
       `;
     }).join("");
 
   } catch (error) {
-    console.error("خطأ تحميل مكافآت المادة:", error);
-    target.innerHTML = "<p>تعذر تحميل مكافآت المادة.</p>";
+    console.error(
+      "[نجوم صفي] خطأ تحميل مكافآت المادة:",
+      error
+    );
+
+    target.innerHTML = `
+      <p>تعذر تحميل مكافآت المادة.</p>
+    `;
   }
 }
 
-// عرض جميع المواد
+/* =========================================================
+   عرض جميع المواد
+   ========================================================= */
+
 function renderStudentSubjects(subjects) {
   const result = getPageElement("result");
+
   if (!result) return;
 
   const totalPoints = subjects.reduce(
-    (sum, subject) => sum + (Number(subject.points) || 0),
+    (sum, subject) =>
+      sum + (Number(subject.points) || 0),
     0
   );
 
   result.innerHTML = `
     <div class="student-overview">
-      <h2>🌟 أهلًا ${escapeHtml(window.currentStudentName)}</h2>
-      <p>هذه إنجازاتك في جميع المواد.</p>
+
+      <h2>
+        🌟 أهلًا ${escapeHtml(window.currentStudentName)}
+      </h2>
+
+      <p>
+        هذه إنجازاتك في جميع المواد.
+      </p>
 
       <div class="total-points">
         <span>إجمالي نقاطك في جميع المواد</span>
+
         <strong>${totalPoints}</strong>
+
         <small>للعرض فقط</small>
       </div>
+
     </div>
 
     <div class="subjects-grid">
-      ${subjects.map(renderSubjectCard).join("")}
+      ${subjects.map((subject, index) =>
+        renderSubjectCard(subject, index)
+      ).join("")}
     </div>
   `;
 
@@ -277,7 +378,10 @@ function renderStudentSubjects(subjects) {
   });
 }
 
-// البحث بالرمز الموحد
+/* =========================================================
+   البحث بالرمز الموحد
+   ========================================================= */
+
 async function searchStudent() {
   const input = getPageElement("studentcode");
   const result = getPageElement("result");
@@ -288,7 +392,9 @@ async function searchStudent() {
 
   if (!code) {
     clearStudentSession();
+
     showSearchError("يرجى إدخال رمز الطالب.");
+
     playError();
     return;
   }
@@ -321,27 +427,43 @@ async function searchStudent() {
 
       const teacherDoc = studentDoc.ref.parent.parent;
 
-      if (!teacherDoc || teacherDoc.parent.id !== "teachers") {
+      // التأكد من أن السجل تابع لمجموعة المعلمات
+      if (
+        !teacherDoc ||
+        teacherDoc.parent.id !== "teachers"
+      ) {
         continue;
       }
 
+      // التأكد من تطابق الرمز
       if (String(student.code || "").trim() !== code) {
         continue;
       }
 
+      // اسم المادة محفوظ في سجل الطالبة
+      const subjectName = String(
+        student.subjectName || ""
+      ).trim();
+
       subjects.push({
         id: studentDoc.id,
         teacherId: teacherDoc.id,
+
         name: student.name || "الطالب",
         code,
+
         points: Number(student.points) || 0,
+
         className: student.className || "",
         section: String(student.section ?? ""),
+
         message: student.message || "",
-        // subjectName غير موجود حاليًا في سجل الطالب.
-        // يلزم إضافته من لوحة المعلمة في خطوة لاحقة.
-        subjectName: student.subjectName || "مادة المعلمة",
-        teacherName: student.teacherName || "المعلمة"
+
+        subjectName:
+          subjectName || "لم تُحدد المادة",
+
+        teacherName:
+          student.teacherName || "المعلمة"
       });
     }
 
@@ -349,29 +471,62 @@ async function searchStudent() {
       throw new Error("STUDENT_NOT_FOUND");
     }
 
-    // التحقق من اتساق الاسم
-    const names = [...new Set(subjects.map(item => item.name))];
+    // التحقق من اتساق اسم الطالب بين المواد
+    const names = [
+      ...new Set(subjects.map(item => item.name))
+    ];
 
     if (names.length > 1) {
       throw new Error("STUDENT_NAME_CONFLICT");
     }
 
-    window.currentStudentCode = code;
-    window.currentStudentId = subjects[0].id;
-    window.currentStudentName = subjects[0].name;
-    window.currentStudentPoints = subjects.reduce(
-      (sum, item) => sum + item.points, 0
-    );
-    window.currentTeacherId = subjects[0].teacherId;
-    window.currentStudentClass = subjects[0].className;
-    window.currentStudentSection = subjects[0].section;
-    window.currentStudentSubjects = subjects;
+    // منع تكرار السجل نفسه إن ظهر أكثر من مرة
+    const uniqueSubjects = [
+      ...new Map(
+        subjects.map(subject => [
+          `${subject.teacherId}_${subject.id}`,
+          subject
+        ])
+      ).values()
+    ];
 
-    renderStudentSubjects(subjects);
+    // حفظ بيانات الطالب
+    window.currentStudentCode = code;
+
+    window.currentStudentId =
+      uniqueSubjects[0].id;
+
+    window.currentStudentName =
+      uniqueSubjects[0].name;
+
+    // هذا الإجمالي للعرض فقط
+    window.currentStudentPoints =
+      uniqueSubjects.reduce(
+        (sum, item) => sum + item.points,
+        0
+      );
+
+    window.currentTeacherId =
+      uniqueSubjects[0].teacherId;
+
+    window.currentStudentClass =
+      uniqueSubjects[0].className;
+
+    window.currentStudentSection =
+      uniqueSubjects[0].section;
+
+    window.currentStudentSubjects =
+      uniqueSubjects;
+
+    renderStudentSubjects(uniqueSubjects);
+
     playSuccess();
 
   } catch (error) {
-    console.error("[نجوم صفي] خطأ البحث:", error);
+    console.error(
+      "[نجوم صفي] خطأ البحث:",
+      error
+    );
 
     clearStudentSession();
 
@@ -379,37 +534,65 @@ async function searchStudent() {
     let details = error.message || "";
 
     if (error.message === "FIREBASE_NOT_INITIALIZED") {
-      message = "تعذر الاتصال بقاعدة بيانات Firebase.";
+      message =
+        "تعذر الاتصال بقاعدة بيانات Firebase.";
+      details = "";
+
     } else if (error.message === "STUDENT_NOT_FOUND") {
-      message = "لم يتم العثور على طالب بهذا الرمز.";
+      message =
+        "لم يتم العثور على طالب بهذا الرمز.";
       details = "";
-    } else if (error.message === "STUDENT_NAME_CONFLICT") {
-      message = "السجلات المرتبطة بهذا الرمز تحتوي على أسماء مختلفة. يرجى مراجعة المعلمات.";
+
+    } else if (
+      error.message === "STUDENT_NAME_CONFLICT"
+    ) {
+      message =
+        "السجلات المرتبطة بهذا الرمز تحتوي على أسماء مختلفة. يرجى مراجعة المعلمات.";
       details = "";
+
     } else if (error.code === "permission-denied") {
-      message = "قواعد Firestore لا تسمح بالبحث عن سجلات المواد.";
-    } else if (error.code === "failed-precondition") {
-      message = "قد يحتاج البحث إلى فهرس في Firestore.";
+      message =
+        "قواعد Firestore لا تسمح بالبحث عن سجلات المواد.";
+
+    } else if (
+      error.code === "failed-precondition"
+    ) {
+      message =
+        "قد يحتاج البحث إلى فهرس في Firestore.";
     }
 
     showSearchError(message, details);
+
     playError();
   }
 }
 
-// أصوات
+/* =========================================================
+   أصوات الموقع
+   ========================================================= */
+
 function playAudio(audio) {
   if (!audio) return;
 
   try {
     audio.currentTime = 0;
+
     const playback = audio.play();
 
     if (playback?.catch) {
-      playback.catch(error => console.warn("تعذر تشغيل الصوت:", error));
+      playback.catch(error =>
+        console.warn(
+          "[نجوم صفي] تعذر تشغيل الصوت:",
+          error
+        )
+      );
     }
+
   } catch (error) {
-    console.warn("خطأ تشغيل الصوت:", error);
+    console.warn(
+      "[نجوم صفي] خطأ تشغيل الصوت:",
+      error
+    );
   }
 }
 
@@ -430,62 +613,113 @@ function playMagic() {
   playAudio(magicSound);
 }
 
-// أحداث الصفحة
+/* =========================================================
+   أحداث الصفحة والأصوات
+   ========================================================= */
+
 function setupPageSounds() {
-  const startBtn = document.querySelector(".start-btn");
-  const searchBtn = document.querySelector(".search-box button");
-  const title = document.querySelector(".hero-title");
+  const startBtn =
+    document.querySelector(".start-btn");
+
+  const searchBtn =
+    document.querySelector(".search-box button");
+
+  const title =
+    document.querySelector(".hero-title");
 
   if (startBtn && !startBtn.dataset.soundBound) {
     startBtn.dataset.soundBound = "true";
+
     startBtn.addEventListener("click", playClick);
   }
 
   if (searchBtn && !searchBtn.dataset.searchBound) {
     searchBtn.dataset.searchBound = "true";
-    searchBtn.dataset.searchBound = "true";
+
     searchBtn.addEventListener("click", event => {
       event.preventDefault();
+
       playClick();
+
       searchStudent();
     });
   }
 
   if (title && !title.dataset.titleSoundBound) {
     title.dataset.titleSoundBound = "true";
-    title.addEventListener("click", () => playAudio(titleSound));
+
+    title.addEventListener("click", () => {
+      playAudio(titleSound);
+    });
   }
 }
 
-// أزرار طلب المكافآت
+/* =========================================================
+   أزرار طلب المكافآت
+   ========================================================= */
+
 document.addEventListener("click", event => {
-  const button = event.target.closest("[data-reward-id]");
+  const button = event.target.closest(
+    "[data-reward-id]"
+  );
+
   if (!button) return;
 
-  const index = Number(button.dataset.subjectIndex);
-  const subject = window.currentStudentSubjects[index];
+  const index = Number(
+    button.dataset.subjectIndex
+  );
+
+  const subject =
+    window.currentStudentSubjects[index];
 
   if (!subject) return;
 
+  const rewardId = button.dataset.rewardId;
+
+  // عند تحميل ملف rewards.js الجديد،
+  // سيتم استدعاء دالة إرسال الطلب الخاصة بالمادة.
+  if (typeof window.redeemSubjectReward === "function") {
+    window.redeemSubjectReward(
+      subject,
+      rewardId,
+      button
+    );
+
+    return;
+  }
+
   alert(
-    "تم تجهيز عرض المكافأة للمادة: " +
-    subject.subjectName +
-    ". سنربط إرسال الطلب الخاص بكل مادة في تحديث rewards.js."
+    "سيتم تفعيل إرسال طلب المكافأة لهذه المادة بعد تحديث ملف rewards.js."
   );
 });
 
-// إتاحة الدوال
+/* =========================================================
+   إتاحة الدوال لبقية الملفات
+   ========================================================= */
+
 window.searchStudent = searchStudent;
 window.escapeHtml = escapeHtml;
 window.clearStudentSession = clearStudentSession;
+
+window.renderStudentSubjects = renderStudentSubjects;
+window.loadSubjectMonthlyStar = loadSubjectMonthlyStar;
+window.loadSubjectRewards = loadSubjectRewards;
+
 window.playSuccess = playSuccess;
 window.playError = playError;
 window.playClick = playClick;
 window.playMagic = playMagic;
 
-// تشغيل الصفحة
+/* =========================================================
+   تشغيل الصفحة
+   ========================================================= */
+
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", setupPageSounds, { once: true });
+  document.addEventListener(
+    "DOMContentLoaded",
+    setupPageSounds,
+    { once: true }
+  );
 } else {
   setupPageSounds();
 }
