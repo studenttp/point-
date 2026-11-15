@@ -895,3 +895,406 @@ footer p,
         height: auto;
     }
 }
+
+/* =====================================================
+   بطاقات المواد - نجوم صفي
+   ===================================================== */
+
+/* توسيع منطقة البحث لاستيعاب بطاقات المواد */
+.search-box {
+    max-width: 1200px;
+}
+
+/* مقدمة الطالبة */
+.student-overview {
+    margin: 35px auto;
+    padding: 28px 20px;
+    background: linear-gradient(135deg, #F8FCFF, #EAF5FF);
+    border: 2px solid #C9E3FA;
+    border-radius: 28px;
+    box-shadow: 0 8px 22px rgba(25, 118, 210, .08);
+}
+
+.student-overview h2 {
+    color: #1976D2;
+    font-size: clamp(25px, 3vw, 34px);
+    font-weight: 900;
+    margin-bottom: 8px;
+}
+
+.student-overview > p {
+    color: #455D73;
+    font-size: 18px;
+    margin-bottom: 20px;
+}
+
+/* إجمالي النقاط */
+.total-points {
+    max-width: 550px;
+    margin: 15px auto 0;
+    padding: 15px 22px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    background: #FFFFFF;
+    border: 2px solid #90CAF9;
+    border-radius: 50px;
+    color: #29445C;
+}
+
+.total-points span {
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.total-points strong {
+    color: #1565C0;
+    font-size: 34px;
+    font-weight: 900;
+}
+
+.total-points small {
+    color: #78909C;
+    font-size: 12px;
+}
+
+/* شبكة المواد */
+.subjects-grid {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 22px;
+    margin: 30px auto;
+    align-items: stretch;
+}
+
+/* البطاقة المستقلة لكل مادة */
+.subject-card {
+    min-width: 0;
+    padding: 22px 17px;
+    background: linear-gradient(180deg, #FFFFFF, #F8FCFF);
+    border: 2px solid #C5E0FA;
+    border-top: 8px solid #64B5F6;
+    border-radius: 25px;
+    box-shadow: 0 8px 20px rgba(25, 118, 210, .09);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    transition: transform .25s ease, box-shadow .25s ease;
+    overflow: hidden;
+}
+
+.subject-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 13px 27px rgba(25, 118, 210, .15);
+}
+
+/* رأس البطاقة */
+.subject-card-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 100px;
+}
+
+.subject-icon {
+    width: 58px;
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #E3F2FD;
+    border-radius: 50%;
+    font-size: 30px;
+}
+
+.subject-card-header h2 {
+    color: #1565C0;
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.subject-card-header p {
+    color: #78909C;
+    font-size: 14px;
+}
+
+/* اسم الطالبة */
+.subject-student-name {
+    padding: 9px 12px;
+    background: #F0F7FF;
+    border-radius: 14px;
+    color: #455D73;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+/* رصيد المادة */
+.subject-points {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    padding: 15px 10px;
+}
+
+.subject-points span {
+    color: #546E7A;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.subject-points strong {
+    width: 82px;
+    height: 82px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 50%;
+    background: #E3F2FD;
+    color: #1565C0;
+    font-size: 32px;
+    font-weight: 900;
+    box-shadow: inset 0 0 0 2px #C5E0FA;
+}
+
+.subject-points small {
+    color: #78909C;
+    font-size: 13px;
+}
+
+/* رسالة المعلمة */
+.subject-message {
+    padding: 15px;
+    background: #FFFDF5;
+    border: 1px solid #F5E7BC;
+    border-radius: 17px;
+    text-align: right;
+}
+
+.subject-message h3 {
+    color: #9A7932;
+    font-size: 16px;
+    margin-bottom: 7px;
+}
+
+.subject-message p {
+    color: #596B79;
+    font-size: 14px;
+    line-height: 1.8;
+    overflow-wrap: anywhere;
+}
+
+/* نجم الشهر داخل بطاقة المادة */
+.subject-monthly-star {
+    padding: 15px 10px;
+    background: #F2F8FF;
+    border: 1px solid #D5E8FA;
+    border-radius: 17px;
+}
+
+.subject-monthly-star h3 {
+    color: #1976D2;
+    font-size: 17px;
+    margin-bottom: 8px;
+}
+
+.subject-monthly-star p {
+    color: #455D73;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.8;
+}
+
+/* متجر المكافآت داخل بطاقة المادة */
+.subject-rewards {
+    padding: 15px 10px;
+    background: #F7FBFF;
+    border: 1px solid #D5E8FA;
+    border-radius: 17px;
+}
+
+.subject-rewards > h3 {
+    color: #1976D2;
+    font-size: 17px;
+    margin-bottom: 15px;
+}
+
+/* شبكة المكافآت داخل المادة */
+.subject-rewards-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+.subject-rewards-list > p {
+    color: #78909C;
+    font-size: 14px;
+    line-height: 1.8;
+}
+
+/* بطاقة المكافأة */
+.subject-rewards-list .reward-card {
+    padding: 14px 10px;
+    background: #FFFFFF;
+    border: 1px solid #D6EAFB;
+    border-radius: 17px;
+    box-shadow: 0 4px 10px rgba(25, 118, 210, .06);
+    text-align: center;
+}
+
+.subject-rewards-list .reward-icon {
+    font-size: 38px;
+    margin-bottom: 7px;
+}
+
+.subject-rewards-list .reward-card h3 {
+    color: #29445C;
+    font-size: 16px;
+    margin-bottom: 5px;
+}
+
+.subject-rewards-list .reward-card p {
+    color: #78909C;
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.subject-rewards-list .reward-price {
+    color: #1565C0;
+    font-size: 15px;
+    font-weight: 900;
+    margin: 8px 0;
+}
+
+/* أزرار استبدال المكافآت */
+.subject-rewards-list .redeem,
+.subject-rewards-list .locked {
+    width: 100%;
+    margin: 8px 0 0;
+    padding: 10px 8px;
+    border: none;
+    border-radius: 13px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.subject-rewards-list .redeem {
+    background: #42A5F5;
+    color: #FFFFFF;
+    cursor: pointer;
+}
+
+.subject-rewards-list .redeem:hover {
+    background: #1976D2;
+}
+
+.subject-rewards-list .locked {
+    background: #ECEFF1;
+    color: #78909C;
+    cursor: not-allowed;
+}
+
+/* حالات التحميل والأخطاء */
+.rewards-loading,
+.error {
+    padding: 18px;
+    margin: 15px auto;
+    background: #F2F9FF;
+    border-radius: 17px;
+    color: #455D73;
+    line-height: 1.8;
+}
+
+.error {
+    background: #FFF3F3;
+    color: #B3261E;
+    border: 1px solid #F4C7C3;
+}
+
+/* =====================================================
+   الآيباد والشاشات المتوسطة
+   ===================================================== */
+
+@media (min-width: 600px) and (max-width: 950px) {
+    .subjects-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 17px;
+    }
+
+    .subject-card {
+        padding: 18px 13px;
+    }
+
+    .subject-card-header h2 {
+        font-size: 20px;
+    }
+}
+
+/* =====================================================
+   الهاتف
+   ===================================================== */
+
+@media (max-width: 599px) {
+    .search-box {
+        width: 94%;
+        padding: 22px 14px;
+        border-radius: 24px;
+    }
+
+    .student-overview {
+        padding: 22px 12px;
+    }
+
+    .student-overview > p {
+        font-size: 15px;
+    }
+
+    .total-points {
+        border-radius: 20px;
+        padding: 12px;
+        gap: 8px;
+    }
+
+    .total-points span {
+        font-size: 14px;
+    }
+
+    .total-points strong {
+        font-size: 28px;
+    }
+
+    .subjects-grid {
+        grid-template-columns: 1fr;
+        gap: 17px;
+    }
+
+    .subject-card {
+        padding: 20px 15px;
+        border-radius: 22px;
+    }
+
+    .subject-card-header {
+        min-height: 90px;
+    }
+
+    .subject-card-header h2 {
+        font-size: 21px;
+    }
+
+    .subject-points strong {
+        width: 75px;
+        height: 75px;
+        font-size: 29px;
+    }
+}
+
