@@ -1,23 +1,13 @@
 
 /* =========================================================
    نجوم صفي - script.js
-
-   البحث المباشر عن الطالبة داخل:
-   teachers/{teacherId}/students/{studentId}
-
-   نجم الشهر داخل:
-   teachers/{teacherId}/monthlyStars/{class}__{section}
-
-   لا يستخدم Cloud Functions.
-   لا يستخدم studentCodeIndex.
+   البحث عن الطالب في سجلات جميع المعلمات
+   Firebase Compat SDK
    ========================================================= */
 
 "use strict";
 
-// ===================================
-// أصوات منصة نجوم صَفّي
-// ===================================
-
+// الأصوات
 const clappingSound = new Audio("assets/sounds/clapping.mp3");
 const clickSound = new Audio("assets/sounds/click.wav");
 const magicSound = new Audio("assets/sounds/magic.mp3");
@@ -28,10 +18,7 @@ const titleSound = new Audio(
   "assets/sounds/VoicesAI_Miku_Hatsune_ScreenRecording_001252_08092026.mov"
 );
 
-// ===================================
-// بيانات الطالبة الحالية
-// ===================================
-
+// بيانات الطالب
 window.currentStudentId = null;
 window.currentStudentCode = null;
 window.currentStudentName = null;
@@ -39,11 +26,9 @@ window.currentStudentPoints = 0;
 window.currentTeacherId = null;
 window.currentStudentClass = "";
 window.currentStudentSection = "";
+window.currentStudentSubjects = [];
 
-// ===================================
 // أدوات مساعدة
-// ===================================
-
 function getPageElement(id) {
   return document.getElementById(id);
 }
@@ -58,157 +43,252 @@ function escapeHtml(text) {
 }
 
 function getStudentDatabase() {
-  if (window.db) {
-    return window.db;
-  }
+  if (window.db) return window.db;
 
-  if (
-    window.firebase &&
-    window.firebase.apps &&
-    window.firebase.apps.length
-  ) {
-    const defaultApp = window.firebase.apps.find(
-      app => app.name === "[DEFAULT]"
+  if (window.firebase?.apps?.length) {
+    const app = window.firebase.apps.find(
+      item => item.name === "[DEFAULT]"
     );
 
-    if (defaultApp) {
-      return defaultApp.firestore();
-    }
+    if (app) return app.firestore();
   }
 
   throw new Error("FIREBASE_NOT_INITIALIZED");
 }
 
-// ===================================
-// عرض رسائل البحث
-// ===================================
-
+// رسائل البحث
 function showSearchError(message, details = "") {
   const result = getPageElement("result");
+  if (!result) return;
 
-  if (result) {
-    result.innerHTML = `
-      <div class="error">
-        <div>${escapeHtml(message)}</div>
+  result.innerHTML = `
+    <div class="error">
+      <div>${escapeHtml(message)}</div>
+      ${details ? `
+        <div style="
+          margin-top:12px;
+          padding:10px;
+          background:#fff3f3;
+          border-radius:8px;
+          font-size:12px;
+          direction:ltr;
+          text-align:left;
+          overflow-wrap:anywhere;
+        ">${escapeHtml(details)}</div>
+      ` : ""}
+    </div>
+  `;
+}
 
-        ${
-          details
-            ? `
-              <div style="
-                margin-top: 12px;
-                padding: 10px;
-                background: #fff3f3;
-                border-radius: 8px;
-                font-size: 12px;
-                direction: ltr;
-                text-align: left;
-                overflow-wrap: anywhere;
-                color: #8b3333;
-              ">
-                ${escapeHtml(details)}
-              </div>
-            `
-            : ""
-        }
+// تنظيف الجلسة
+function clearStudentSession() {
+  window.currentStudentId = null;
+  window.currentStudentCode = null;
+  window.currentStudentName = null;
+  window.currentStudentPoints = 0;
+  window.currentTeacherId = null;
+  window.currentStudentClass = "";
+  window.currentStudentSection = "";
+  window.currentStudentSubjects = [];
+
+  const oldStar = getPageElement("starStudent");
+  if (oldStar) oldStar.textContent = "سيتم تحديده لاحقًا";
+
+  const rewards = getPageElement("rewardsList");
+  if (rewards) {
+    rewards.innerHTML = `
+      <div class="rewards-loading">
+        أدخل رمز الطالب لعرض المكافآت.
       </div>
     `;
   }
 }
 
-// ===================================
-// اسم نجم الشهر
-// ===================================
+// عرض بطاقة مادة واحدة
+function renderSubjectCard(subject, index) {
+  const points = Number(subject.points) || 0;
 
-function setStarStudent() {
-  const starStudent = getPageElement("starStudent");
+  return `
+    <article class="subject-card" data-teacher-id="${escapeHtml(subject.teacherId)}">
 
-  if (starStudent) {
-    starStudent.textContent = "سيتم تحديده لاحقًا";
-  }
+      <header class="subject-card-header">
+        <div class="subject-icon">📚</div>
+        <div>
+          <h2>${escapeHtml(subject.subjectName)}</h2>
+          <p>${escapeHtml(subject.teacherName || "المعلمة")}</p>
+        </div>
+      </header>
+
+      <div class="subject-student-name">
+        ⭐ ${escapeHtml(subject.name)}
+      </div>
+
+      <div class="subject-points">
+        <span>رصيد النقاط في المادة</span>
+        <strong>${points}</strong>
+        <small>نقطة</small>
+      </div>
+
+      <div class="subject-message">
+        <h3>💌 رسالة المعلمة</h3>
+        <p>${escapeHtml(subject.message || "لم تضف المعلمة رسالة بعد.")}</p>
+      </div>
+
+      <section class="subject-monthly-star">
+        <h3>🏆 نجم الشهر</h3>
+        <p id="subject-star-${index}">جارٍ تحميل نجم الشهر...</p>
+      </section>
+
+      <section class="subject-rewards">
+        <h3>🎁 متجر مكافآت المادة</h3>
+        <div id="subject-rewards-${index}" class="subject-rewards-list">
+          <p>سيتم تحميل المكافآت...</p>
+        </div>
+      </section>
+
+    </article>
+  `;
 }
 
-// ===================================
-// تحميل نجم الشهر حسب الصف والشعبة
-// ===================================
-
-async function loadMonthlyStarForStudent() {
-  const starStudent = getPageElement("starStudent");
-
-  if (!starStudent) {
-    console.warn(
-      "[نجوم صفي] لم يتم العثور على العنصر starStudent."
-    );
-    return;
-  }
-
-  const teacherId = window.currentTeacherId;
-  const className = window.currentStudentClass;
-  const section = window.currentStudentSection;
-
-  if (!teacherId || !className || !section) {
-    setStarStudent();
-    return;
-  }
+// تحميل نجم الشهر لكل مادة
+async function loadSubjectMonthlyStar(subject, index) {
+  const target = getPageElement(`subject-star-${index}`);
+  if (!target) return;
 
   try {
     const db = getStudentDatabase();
 
-    // يجب أن يطابق هذا المعرّف طريقة الحفظ في teacher.js
-    const documentId =
-      encodeURIComponent(className) +
+    const docId =
+      encodeURIComponent(subject.className) +
       "__" +
-      encodeURIComponent(String(section));
+      encodeURIComponent(String(subject.section));
 
     const snapshot = await db
       .collection("teachers")
-      .doc(teacherId)
+      .doc(subject.teacherId)
       .collection("monthlyStars")
-      .doc(documentId)
+      .doc(docId)
       .get();
 
-    // إذا لم يتم اعتماد نجم لهذه الشعبة
     if (!snapshot.exists) {
-      setStarStudent();
+      target.textContent = "لم يتم تحديد نجم الشهر بعد.";
       return;
     }
 
     const star = snapshot.data() || {};
-
-    starStudent.textContent =
-      star.studentName || "سيتم تحديده لاحقًا";
-
+    target.textContent =
+      "🌟 " + (star.studentName || "نجم الشهر");
   } catch (error) {
-    console.error(
-      "[نجوم صفي] تعذر تحميل نجم الشهر:",
-      error
-    );
-
-    setStarStudent();
+    console.error("خطأ تحميل نجم الشهر:", error);
+    target.textContent = "تعذر تحميل نجم الشهر.";
   }
 }
 
-// ===================================
-// البحث المباشر عن الطالبة
-// ===================================
+// تحميل مكافآت مادة واحدة
+async function loadSubjectRewards(subject, index) {
+  const target = getPageElement(`subject-rewards-${index}`);
+  if (!target) return;
 
+  try {
+    const db = getStudentDatabase();
+
+    const snapshot = await db
+      .collection("teachers")
+      .doc(subject.teacherId)
+      .collection("rewards")
+      .get();
+
+    const rewards = snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() }))
+      .filter(reward =>
+        reward.active !== false &&
+        String(reward.className || "") === String(subject.className) &&
+        String(reward.section ?? "") === String(subject.section)
+      );
+
+    if (!rewards.length) {
+      target.innerHTML = "<p>لا توجد مكافآت متاحة حاليًا.</p>";
+      return;
+    }
+
+    target.innerHTML = rewards.map(reward => {
+      const price = Number(reward.price) || 0;
+      const enoughPoints = subject.points >= price;
+
+      return `
+        <div class="reward-card">
+          <div class="reward-icon">${escapeHtml(reward.icon || "🎁")}</div>
+          <h3>${escapeHtml(reward.name || "مكافأة")}</h3>
+          <p>${escapeHtml(reward.description || "")}</p>
+          <div class="reward-price">⭐ ${price} نقطة</div>
+
+          ${
+            enoughPoints
+              ? `<button type="button"
+                    class="redeem"
+                    data-reward-id="${escapeHtml(reward.id)}"
+                    data-subject-index="${index}">
+                    🎁 طلب المكافأة
+                 </button>`
+              : `<button type="button" class="locked" disabled>
+                    🔒 نقاط غير كافية
+                 </button>`
+          }
+        </div>
+      `;
+    }).join("");
+
+  } catch (error) {
+    console.error("خطأ تحميل مكافآت المادة:", error);
+    target.innerHTML = "<p>تعذر تحميل مكافآت المادة.</p>";
+  }
+}
+
+// عرض جميع المواد
+function renderStudentSubjects(subjects) {
+  const result = getPageElement("result");
+  if (!result) return;
+
+  const totalPoints = subjects.reduce(
+    (sum, subject) => sum + (Number(subject.points) || 0),
+    0
+  );
+
+  result.innerHTML = `
+    <div class="student-overview">
+      <h2>🌟 أهلًا ${escapeHtml(window.currentStudentName)}</h2>
+      <p>هذه إنجازاتك في جميع المواد.</p>
+
+      <div class="total-points">
+        <span>إجمالي نقاطك في جميع المواد</span>
+        <strong>${totalPoints}</strong>
+        <small>للعرض فقط</small>
+      </div>
+    </div>
+
+    <div class="subjects-grid">
+      ${subjects.map(renderSubjectCard).join("")}
+    </div>
+  `;
+
+  subjects.forEach((subject, index) => {
+    loadSubjectMonthlyStar(subject, index);
+    loadSubjectRewards(subject, index);
+  });
+}
+
+// البحث بالرمز الموحد
 async function searchStudent() {
-
-  const codeInput = getPageElement("studentcode");
+  const input = getPageElement("studentcode");
   const result = getPageElement("result");
 
-  if (!codeInput || !result) {
-    console.error(
-      "تعذر العثور على حقل رمز الطالبة أو مساحة عرض النتائج."
-    );
-    return;
-  }
+  if (!input || !result) return;
 
-  const code = String(codeInput.value || "").trim();
+  const code = String(input.value || "").trim();
 
   if (!code) {
     clearStudentSession();
-    showSearchError("يرجى إدخال رمز الطالبة.");
-    refreshRewards();
+    showSearchError("يرجى إدخال رمز الطالب.");
     playError();
     return;
   }
@@ -217,288 +297,121 @@ async function searchStudent() {
 
   result.innerHTML = `
     <div class="rewards-loading">
-      جارٍ البحث عن الطالبة...
+      ⏳ جارٍ البحث عن بيانات الطالب في جميع المواد...
     </div>
   `;
 
   try {
-
     const db = getStudentDatabase();
 
-    // =================================
-    // البحث المباشر في سجلات الطالبات
-    // =================================
-
+    // البحث عن جميع سجلات الرمز لدى المعلمات
     const snapshot = await db
       .collectionGroup("students")
       .where("code", "==", code)
-      .limit(2)
       .get();
-
-    // =================================
-    // التحقق من وجود الطالبة
-    // =================================
 
     if (snapshot.empty) {
       throw new Error("STUDENT_NOT_FOUND");
     }
 
-    if (snapshot.size > 1) {
-      throw new Error("DUPLICATE_STUDENT_CODE");
+    const subjects = [];
+
+    for (const studentDoc of snapshot.docs) {
+      const student = studentDoc.data() || {};
+
+      const teacherDoc = studentDoc.ref.parent.parent;
+
+      if (!teacherDoc || teacherDoc.parent.id !== "teachers") {
+        continue;
+      }
+
+      if (String(student.code || "").trim() !== code) {
+        continue;
+      }
+
+      subjects.push({
+        id: studentDoc.id,
+        teacherId: teacherDoc.id,
+        name: student.name || "الطالب",
+        code,
+        points: Number(student.points) || 0,
+        className: student.className || "",
+        section: String(student.section ?? ""),
+        message: student.message || "",
+        // subjectName غير موجود حاليًا في سجل الطالب.
+        // يلزم إضافته من لوحة المعلمة في خطوة لاحقة.
+        subjectName: student.subjectName || "مادة المعلمة",
+        teacherName: student.teacherName || "المعلمة"
+      });
     }
 
-    const studentDoc = snapshot.docs[0];
-    const student = studentDoc.data() || {};
-
-    // =================================
-    // تحديد المعلمة المالكة للسجل
-    // =================================
-
-    const teacherDoc = studentDoc.ref.parent.parent;
-
-    if (
-      !teacherDoc ||
-      teacherDoc.parent.id !== "teachers"
-    ) {
-      throw new Error("INVALID_STUDENT_PATH");
+    if (!subjects.length) {
+      throw new Error("STUDENT_NOT_FOUND");
     }
 
-    // =================================
-    // التحقق من الرمز
-    // =================================
+    // التحقق من اتساق الاسم
+    const names = [...new Set(subjects.map(item => item.name))];
 
-    if (
-      String(student.code || "").trim() !== code
-    ) {
-      throw new Error("STUDENT_CODE_MISMATCH");
+    if (names.length > 1) {
+      throw new Error("STUDENT_NAME_CONFLICT");
     }
 
-    // =================================
-    // حفظ بيانات الطالبة
-    // =================================
-
-    window.currentStudentId = studentDoc.id;
     window.currentStudentCode = code;
-    window.currentStudentName = student.name || "الطالبة";
-    window.currentStudentPoints = Number(student.points) || 0;
-    window.currentTeacherId = teacherDoc.id;
-    window.currentStudentClass = student.className || "";
-    window.currentStudentSection = String(
-      student.section ?? ""
+    window.currentStudentId = subjects[0].id;
+    window.currentStudentName = subjects[0].name;
+    window.currentStudentPoints = subjects.reduce(
+      (sum, item) => sum + item.points, 0
     );
+    window.currentTeacherId = subjects[0].teacherId;
+    window.currentStudentClass = subjects[0].className;
+    window.currentStudentSection = subjects[0].section;
+    window.currentStudentSubjects = subjects;
 
-    // =================================
-    // عرض بطاقة الطالبة
-    // =================================
-
-    result.innerHTML = `
-      <div class="student-card">
-
-        <h2>
-          🌟 ${escapeHtml(window.currentStudentName)}
-        </h2>
-
-        <div class="points">
-          🏆 مجموع النقاط
-          <h1>${window.currentStudentPoints}</h1>
-        </div>
-
-        ${
-          window.currentStudentClass
-            ? `
-              <p>
-                الصف:
-                ${escapeHtml(window.currentStudentClass)}
-              </p>
-            `
-            : ""
-        }
-
-        ${
-          window.currentStudentSection
-            ? `
-              <p>
-                الشعبة:
-                ${escapeHtml(window.currentStudentSection)}
-              </p>
-            `
-            : ""
-        }
-
-        <p>
-          ${escapeHtml(student.message || "")}
-        </p>
-
-      </div>
-    `;
-
-    // تحميل نجم الشهر الخاص بصف وشعبة الطالبة
-    await loadMonthlyStarForStudent();
-
+    renderStudentSubjects(subjects);
     playSuccess();
-    refreshRewards();
 
   } catch (error) {
-
-    // =================================
-    // تسجيل الخطأ الحقيقي
-    // =================================
-
-    console.error(
-      "Firestore Search Error:",
-      error
-    );
+    console.error("[نجوم صفي] خطأ البحث:", error);
 
     clearStudentSession();
 
-    const errorCode = String(error?.code || "");
-    const errorMessage = String(error?.message || "");
+    let message = "حدث خطأ أثناء البحث.";
+    let details = error.message || "";
 
-    let message =
-      "تعذر البحث عن الطالبة حاليًا.";
-
-    let details = "";
-
-    // =================================
-    // تحديد نوع الخطأ
-    // =================================
-
-    if (
-      errorMessage === "FIREBASE_NOT_INITIALIZED"
-    ) {
-
-      message =
-        "لم يتم الاتصال بقاعدة بيانات Firebase.";
-
-      details =
-        "تحققي من تحميل firebase.js قبل script.js.";
-
-    } else if (
-      errorMessage === "STUDENT_NOT_FOUND"
-    ) {
-
-      message =
-        "لم يتم العثور على طالبة بهذا الرمز.";
-
-    } else if (
-      errorMessage === "DUPLICATE_STUDENT_CODE"
-    ) {
-
-      message =
-        "هذا الرمز مرتبط بأكثر من سجل. يرجى مراجعة المعلمة.";
-
-    } else if (
-      errorMessage === "INVALID_STUDENT_PATH" ||
-      errorMessage === "STUDENT_CODE_MISMATCH"
-    ) {
-
-      message =
-        "تعذر التحقق من سجل الطالبة.";
-
-    } else if (
-      errorCode.includes("permission-denied") ||
-      errorCode.includes("unauthenticated")
-    ) {
-
-      message =
-        "رفضت قواعد Firestore عملية البحث.";
-
-      details = errorMessage;
-
-    } else if (
-      errorCode.includes("failed-precondition")
-    ) {
-
-      message =
-        "الاستعلام يحتاج إلى فهرس في Firestore أو توجد مشكلة في إعداداته.";
-
-      details = errorMessage;
-
-    } else if (
-      errorCode.includes("unavailable") ||
-      errorCode.includes("deadline-exceeded")
-    ) {
-
-      message =
-        "تعذر الاتصال بقاعدة البيانات. تحققي من الإنترنت.";
-
-      details = errorMessage;
-
-    } else {
-
-      message =
-        "حدث خطأ أثناء البحث. تفاصيل الخطأ:";
-
-      details =
-        errorCode + " | " + errorMessage;
+    if (error.message === "FIREBASE_NOT_INITIALIZED") {
+      message = "تعذر الاتصال بقاعدة بيانات Firebase.";
+    } else if (error.message === "STUDENT_NOT_FOUND") {
+      message = "لم يتم العثور على طالب بهذا الرمز.";
+      details = "";
+    } else if (error.message === "STUDENT_NAME_CONFLICT") {
+      message = "السجلات المرتبطة بهذا الرمز تحتوي على أسماء مختلفة. يرجى مراجعة المعلمات.";
+      details = "";
+    } else if (error.code === "permission-denied") {
+      message = "قواعد Firestore لا تسمح بالبحث عن سجلات المواد.";
+    } else if (error.code === "failed-precondition") {
+      message = "قد يحتاج البحث إلى فهرس في Firestore.";
     }
 
-    // =================================
-    // عرض الخطأ
-    // =================================
-
     showSearchError(message, details);
-
-    refreshRewards();
     playError();
   }
 }
 
-// ===================================
-// مسح بيانات جلسة الطالبة
-// ===================================
+// أصوات
+function playAudio(audio) {
+  if (!audio) return;
 
-function clearStudentSession() {
+  try {
+    audio.currentTime = 0;
+    const playback = audio.play();
 
-  window.currentStudentId = null;
-  window.currentStudentCode = null;
-  window.currentStudentName = null;
-  window.currentStudentPoints = 0;
-  window.currentTeacherId = null;
-  window.currentStudentClass = "";
-  window.currentStudentSection = "";
-
-  // إعادة الاسم الافتراضي عند مسح الجلسة
-  setStarStudent();
-}
-
-// ===================================
-// تحديث متجر المكافآت
-// ===================================
-
-function refreshRewards() {
-
-  if (typeof window.loadRewards === "function") {
-
-    try {
-
-      const task = window.loadRewards();
-
-      if (
-        task &&
-        typeof task.catch === "function"
-      ) {
-        task.catch(error => {
-          console.error(
-            "تعذر تحديث متجر المكافآت:",
-            error
-          );
-        });
-      }
-
-    } catch (error) {
-
-      console.error(
-        "تعذر تحديث متجر المكافآت:",
-        error
-      );
+    if (playback?.catch) {
+      playback.catch(error => console.warn("تعذر تشغيل الصوت:", error));
     }
+  } catch (error) {
+    console.warn("خطأ تشغيل الصوت:", error);
   }
 }
-
-// ===================================
-// أصوات النجاح والخطأ
-// ===================================
 
 function playSuccess() {
   playAudio(clappingSound);
@@ -517,139 +430,62 @@ function playMagic() {
   playAudio(magicSound);
 }
 
-function playAudio(audio) {
-
-  if (!audio) return;
-
-  try {
-
-    audio.currentTime = 0;
-
-    const playback = audio.play();
-
-    if (
-      playback &&
-      typeof playback.catch === "function"
-    ) {
-      playback.catch(error => {
-        console.warn(
-          "تعذر تشغيل الصوت:",
-          error
-        );
-      });
-    }
-
-  } catch (error) {
-
-    console.warn(
-      "حدث خطأ أثناء تشغيل الصوت:",
-      error
-    );
-  }
-}
-
-// ===================================
-// إعداد أصوات الصفحة وربط البحث
-// ===================================
-
+// أحداث الصفحة
 function setupPageSounds() {
-
-  setStarStudent();
-
   const startBtn = document.querySelector(".start-btn");
   const searchBtn = document.querySelector(".search-box button");
-  const searchForm = getPageElement("studentSearchForm");
   const title = document.querySelector(".hero-title");
 
-  if (
-    startBtn &&
-    !startBtn.dataset.soundBound
-  ) {
-
+  if (startBtn && !startBtn.dataset.soundBound) {
     startBtn.dataset.soundBound = "true";
     startBtn.addEventListener("click", playClick);
   }
 
-  if (
-    searchBtn &&
-    !searchBtn.dataset.soundBound
-  ) {
-
-    searchBtn.dataset.soundBound = "true";
-    searchBtn.addEventListener("click", playClick);
-  }
-
-  if (
-    searchForm &&
-    !searchForm.dataset.searchBound
-  ) {
-
-    searchForm.dataset.searchBound = "true";
-
-    searchForm.addEventListener("submit", event => {
-
-      event.preventDefault();
-      searchStudent();
-
-    });
-
-  } else if (
-    searchBtn &&
-    !searchBtn.dataset.searchBound
-  ) {
-
+  if (searchBtn && !searchBtn.dataset.searchBound) {
     searchBtn.dataset.searchBound = "true";
-
+    searchBtn.dataset.searchBound = "true";
     searchBtn.addEventListener("click", event => {
-
       event.preventDefault();
+      playClick();
       searchStudent();
-
     });
   }
 
-  if (
-    title &&
-    !title.dataset.titleSoundBound
-  ) {
-
+  if (title && !title.dataset.titleSoundBound) {
     title.dataset.titleSoundBound = "true";
-
-    title.addEventListener("click", () => {
-      playAudio(titleSound);
-    });
+    title.addEventListener("click", () => playAudio(titleSound));
   }
 }
 
-// ===================================
-// إتاحة الدوال لبقية ملفات الموقع
-// ===================================
+// أزرار طلب المكافآت
+document.addEventListener("click", event => {
+  const button = event.target.closest("[data-reward-id]");
+  if (!button) return;
 
+  const index = Number(button.dataset.subjectIndex);
+  const subject = window.currentStudentSubjects[index];
+
+  if (!subject) return;
+
+  alert(
+    "تم تجهيز عرض المكافأة للمادة: " +
+    subject.subjectName +
+    ". سنربط إرسال الطلب الخاص بكل مادة في تحديث rewards.js."
+  );
+});
+
+// إتاحة الدوال
 window.searchStudent = searchStudent;
 window.escapeHtml = escapeHtml;
 window.clearStudentSession = clearStudentSession;
-window.refreshRewards = refreshRewards;
-window.loadMonthlyStarForStudent = loadMonthlyStarForStudent;
-
 window.playSuccess = playSuccess;
 window.playError = playError;
 window.playClick = playClick;
 window.playMagic = playMagic;
 
-// ===================================
 // تشغيل الصفحة
-// ===================================
-
 if (document.readyState === "loading") {
-
-  document.addEventListener(
-    "DOMContentLoaded",
-    setupPageSounds,
-    { once: true }
-  );
-
+  document.addEventListener("DOMContentLoaded", setupPageSounds, { once: true });
 } else {
-
   setupPageSounds();
-
 }
