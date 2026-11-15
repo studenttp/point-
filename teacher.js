@@ -11,6 +11,9 @@
 
    تعديل النقاط:
    تحديث فوري باستخدام Firestore Transaction
+
+   تحديث:
+   حفظ اسم المادة subjectName مع سجل كل طالبة
    ========================================================= */
 
 "use strict";
@@ -48,7 +51,6 @@ function initializeTeacherPanel() {
   let editingRewardId = null;
   let teacherProfile = {};
 
-  // منع تنفيذ أكثر من عملية تعديل نقاط في الوقت نفسه
   let adjustingPoints = false;
 
   /* -------------------- أدوات مساعدة -------------------- */
@@ -847,7 +849,26 @@ function initializeTeacherPanel() {
       throw new Error("أدخلي عدد نقاط صحيحًا غير سالب.");
     }
 
-    return { name, code, className, section, points, message };
+    // إضافة اسم المادة إلى بيانات الطالبة
+    const subjectName = String(
+      teacherProfile.subjectName || ""
+    ).trim();
+
+    if (!subjectName) {
+      throw new Error(
+        "لم يتم العثور على اسم المادة في ملف المعلمة. تحققي من بيانات حسابك."
+      );
+    }
+
+    return {
+      name,
+      code,
+      className,
+      section,
+      points,
+      message,
+      subjectName
+    };
   }
 
   async function loadStudents() {
@@ -903,6 +924,7 @@ function initializeTeacherPanel() {
         <div>الرمز: ${escapeHTML(student.code)}</div>
         <div>الصف: ${escapeHTML(student.className || "")}</div>
         <div>الشعبة: ${escapeHTML(student.section || "")}</div>
+        <div>المادة: ${escapeHTML(student.subjectName || teacherProfile.subjectName || "")}</div>
         <div>النقاط: ${Number(student.points) || 0}</div>
         <div>${escapeHTML(student.message || "")}</div>
 
@@ -1082,9 +1104,11 @@ function initializeTeacherPanel() {
         );
       }
 
+      // حفظ اسم المادة مع بيانات الطالبة
       await studentRef.set({
         ...data,
         teacherId: currentTeacher.uid,
+        subjectName: teacherProfile.subjectName || data.subjectName,
         createdAt: oldData.createdAt || serverTimestamp(),
         updatedAt: serverTimestamp()
       }, { merge: true });
@@ -1105,7 +1129,7 @@ function initializeTeacherPanel() {
       await loadStudents();
 
       showMessage(
-        "تم حفظ بيانات الطالبة بنجاح.",
+        "تم حفظ بيانات الطالبة والمادة بنجاح.",
         "success",
         "studentStatus"
       );
@@ -1792,9 +1816,6 @@ function initializeTeacherPanel() {
 
   /* =========================================================
      الربط النهائي لأزرار إضافة وخصم النقاط
-
-     يستخدم document بدل الاعتماد على عنصر points-actions
-     حتى يستقبل الضغط حتى لو تغيّر تركيب الصفحة.
      ========================================================= */
 
   if (!document.documentElement.dataset.pointsListenerBound) {
